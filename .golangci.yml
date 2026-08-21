@@ -37,6 +37,13 @@ linters:
       # Only the domain. Elsewhere a partial literal is usually the point.
       enforce-patterns:
         - 'github.com/leandronsp/githerb/internal/review\..+'
+    wrapcheck:
+      # Wrapping matters at the edge of the project, where an error from
+      # somebody else's package arrives without our context. Between our own
+      # packages the context is already there and wrapping is only ceremony.
+      ignore-package-globs:
+        - github.com/leandronsp/githerb/*
+
     ireturn:
       allow:
         - error

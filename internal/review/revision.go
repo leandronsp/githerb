@@ -8,6 +8,12 @@ type Revision struct {
 	sha    SHA
 }
 
+// NewRevision rebuilds a revision that was already written down. Opening a
+// proposal numbers the first one; this is for reading them back.
+func NewRevision(number int, sha SHA) Revision {
+	return Revision{number: number, sha: sha}
+}
+
 // Number is the revision's place in the sequence, starting at one.
 func (r Revision) Number() int { return r.number }
 

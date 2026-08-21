@@ -10,7 +10,7 @@ import (
 func proposal(t *testing.T) review.Proposal {
 	t.Helper()
 
-	made, err := review.NewProposal("land-the-gate", "Land the gate", base, rev)
+	made, err := review.NewProposal("land-the-gate", "Land the gate", "main", base, rev)
 	if err != nil {
 		t.Fatalf("proposal: %v", err)
 	}
@@ -22,6 +22,10 @@ func TestAProposalStartsOpenAtRevisionOne(t *testing.T) {
 	t.Parallel()
 
 	made := proposal(t)
+
+	if made.Target() != "main" {
+		t.Fatalf("target is %q, want main", made.Target())
+	}
 
 	if made.State() != review.StateOpen {
 		t.Fatalf("state is %q, want open", made.State())
@@ -36,25 +40,27 @@ func TestRefusedProposals(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name  string
-		id    review.ProposalID
-		title string
-		base  review.SHA
-		head  review.SHA
-		want  error
+		name   string
+		id     review.ProposalID
+		title  string
+		target review.Branch
+		base   review.SHA
+		head   review.SHA
+		want   error
 	}{
-		{"no id", "", "t", base, rev, review.ErrNoProposalID},
-		{"no title", "x", "  ", base, rev, review.ErrNoTitle},
-		{"base is not a sha", "x", "t", "nope", rev, review.ErrNoRevision},
-		{"head is not a sha", "x", "t", base, "nope", review.ErrNoRevision},
-		{"head is the base", "x", "t", base, base, review.ErrNothingProposed},
+		{"no id", "", "t", "main", base, rev, review.ErrNoProposalID},
+		{"no title", "x", "  ", "main", base, rev, review.ErrNoTitle},
+		{"no target", "x", "t", "  ", base, rev, review.ErrNoBranch},
+		{"base is not a sha", "x", "t", "main", "nope", rev, review.ErrNoRevision},
+		{"head is not a sha", "x", "t", "main", base, "nope", review.ErrNoRevision},
+		{"head is the base", "x", "t", "main", base, base, review.ErrNothingProposed},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := review.NewProposal(tc.id, tc.title, tc.base, tc.head)
+			_, err := review.NewProposal(tc.id, tc.title, tc.target, tc.base, tc.head)
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("got %v, want %v", err, tc.want)
 			}

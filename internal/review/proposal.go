@@ -16,6 +16,7 @@ import (
 type Proposal struct {
 	id        ProposalID
 	title     string
+	target    Branch
 	base      SHA
 	state     State
 	revisions []Revision
@@ -23,8 +24,9 @@ type Proposal struct {
 	resolved  map[ID]bool
 }
 
-// NewProposal opens a proposal at its first revision.
-func NewProposal(id ProposalID, title string, base, head SHA) (Proposal, error) {
+// NewProposal opens a proposal at its first revision. The target is whichever
+// branch this is meant to land on, which is often the trunk and need not be.
+func NewProposal(id ProposalID, title string, target Branch, base, head SHA) (Proposal, error) {
 	title = strings.TrimSpace(title)
 
 	switch {
@@ -32,6 +34,8 @@ func NewProposal(id ProposalID, title string, base, head SHA) (Proposal, error) 
 		return Proposal{}, ErrNoProposalID
 	case title == "":
 		return Proposal{}, ErrNoTitle
+	case strings.TrimSpace(string(target)) == "":
+		return Proposal{}, ErrNoBranch
 	case !shaPattern.MatchString(string(base)):
 		return Proposal{}, fmt.Errorf("base %q: %w", base, ErrNoRevision)
 	case !shaPattern.MatchString(string(head)):
@@ -43,6 +47,7 @@ func NewProposal(id ProposalID, title string, base, head SHA) (Proposal, error) 
 	return Proposal{
 		id:        id,
 		title:     title,
+		target:    target,
 		base:      base,
 		state:     StateOpen,
 		revisions: []Revision{{number: 1, sha: head}},
@@ -57,7 +62,10 @@ func (p Proposal) ID() ProposalID { return p.id }
 // Title is what a human calls it.
 func (p Proposal) Title() string { return p.title }
 
-// Base is the commit the proposal is meant to land on.
+// Target is the branch the proposal lands on.
+func (p Proposal) Target() Branch { return p.target }
+
+// Base is the commit the proposal was cut from.
 func (p Proposal) Base() SHA { return p.base }
 
 // State is where the proposal is in its life.
@@ -219,6 +227,7 @@ func (p Proposal) clone() Proposal {
 	return Proposal{
 		id:        p.id,
 		title:     p.title,
+		target:    p.target,
 		base:      p.base,
 		state:     p.state,
 		revisions: revisions,

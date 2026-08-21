@@ -25,4 +25,6 @@ var (
 	ErrOpenComments    = errors.New("the head revision still has open comments")
 	ErrNotOpen         = errors.New("the proposal is no longer open")
 	ErrUnknownState    = errors.New("a state this build does not know")
+	ErrNoBranch        = errors.New("a proposal must name the branch it lands on")
+	ErrBadBranch       = errors.New("not a branch name git would accept")
 )
