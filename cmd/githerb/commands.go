@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -59,9 +60,9 @@ func list() error {
 	}
 
 	for _, proposal := range proposals {
-		fmt.Printf("%-44s %-9s r%d  %2d open  onto %s\n",
+		fmt.Printf("%-44s %-9s r%d  %2d open  %-8s onto %s\n",
 			proposal.ID(), proposal.State(), proposal.Head().Number(),
-			len(proposal.Open()), proposal.Target())
+			len(proposal.Open()), checkSummary(proposal), proposal.Target())
 	}
 
 	return nil
@@ -78,12 +79,19 @@ func show(args []string) error {
 		short(proposal.Base()), proposal.State(),
 		proposal.Head().Number(), len(proposal.Revisions()))
 
+	for _, name := range sortedChecks(proposal) {
+		check := proposal.Checks()[name]
+		fmt.Printf("%-16s %s in %ds\n", check.Name(), check.Status(), check.Seconds())
+	}
+
 	open := proposal.Open()
 	if len(open) == 0 {
 		fmt.Println("nothing open")
 
 		return nil
 	}
+
+	fmt.Println()
 
 	for _, comment := range open {
 		fmt.Printf("%s  %s:%d", comment.ID(), comment.File(), comment.Span().Start())
@@ -317,6 +325,32 @@ func abandon(args []string) error {
 	fmt.Printf("%s abandoned\n", proposal.ID())
 
 	return nil
+}
+
+// checkSummary is the shortest true thing that can be said about the checks on
+// the head revision, for a column in a list.
+func checkSummary(proposal review.Proposal) string {
+	checks := proposal.Checks()
+	if len(checks) == 0 {
+		return "no checks"
+	}
+
+	if failing := len(proposal.Failing()); failing > 0 {
+		return fmt.Sprintf("%d failed", failing)
+	}
+
+	return "passing"
+}
+
+func sortedChecks(proposal review.Proposal) []review.CheckName {
+	names := make([]review.CheckName, 0, len(proposal.Checks()))
+	for name := range proposal.Checks() {
+		names = append(names, name)
+	}
+
+	sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
+
+	return names
 }
 
 func loadOne(args []string) (review.Proposal, session, error) {
