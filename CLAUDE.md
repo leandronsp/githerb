@@ -87,3 +87,8 @@ Mandatory reading before writing code, under `.claude/rules/`:
 Conventional prefix, present imperative, lowercase after the prefix, no emoji.
 The message explains why, not who wrote it. Never mention AI, agents or Claude.
 Stage files explicitly. One logical change per commit.
+
+Never rewrite a commit a proposal already points at. A revision is a sha in a
+ref, so amending or rebasing after `githerb revise` leaves the proposal head
+off the branch, and landing it would move the target to a commit that no longer
+has the work. Amend before revising, or make the fix a new revision.
