@@ -1,0 +1,63 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # correctness
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - forcetypeassert
+    - makezero
+    - nilerr
+    - nilnil
+    # the typing discipline, see .claude/rules/typing.md
+    - exhaustive
+    - exhaustruct
+    - ireturn
+    # errors as values
+    - errorlint
+    - wrapcheck
+    - err113
+    # style and hygiene
+    - revive
+    - gocritic
+    - gosec
+    - godot
+    - containedctx
+    # tests
+    - paralleltest
+    - thelper
+
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: false
+    exhaustruct:
+      # Only the domain. Elsewhere a partial literal is usually the point.
+      include:
+        - 'github.com/leandronsp/githerb/internal/review\..+'
+    ireturn:
+      allow:
+        - error
+        - stdlib
+        - empty
+        - generic
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - err113
+          - exhaustruct
+          - wrapcheck
+          - gosec
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
