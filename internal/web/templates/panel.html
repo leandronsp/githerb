@@ -1,4 +1,30 @@
 <div id="panel">
+  {{ if .Chunks }}
+    <h2>What this decides</h2>
+    <ol class="chunks">
+      {{ range .Decisions }}
+        {{ $anchor := $.Anchor .Chunk }}
+        <li id="d{{ .N }}">
+          <p class="head">
+            {{ if $anchor }}<a href="#{{ $anchor }}">{{ .Chunk.Title }}</a>{{ else }}{{ .Chunk.Title }}{{ end }}
+          </p>
+          <p class="at">
+            {{ if $anchor }}
+              <a href="#{{ $anchor }}">{{ .Chunk.File }}:{{ .Chunk.Span.Start }}</a>
+            {{ end }}
+            {{ if .Surface }}<span class="surface">{{ .Surface }}</span>{{ end }}
+          </p>
+          <dl class="shift">
+            <dt>was</dt><dd>{{ .Chunk.Before }}</dd>
+            <dt>now</dt><dd>{{ .Chunk.After }}</dd>
+            <dt>call</dt><dd>{{ .Chunk.Decision }}</dd>
+            {{ if .Chunk.Rejected }}<dt>instead of</dt><dd class="rejected">{{ .Chunk.Rejected }}</dd>{{ end }}
+          </dl>
+        </li>
+      {{ end }}
+    </ol>
+  {{ end }}
+
   {{ if .Checks }}
     <h2>Checks</h2>
     <ul class="checks">
@@ -19,22 +45,13 @@
   <ul class="notes">
     {{ range .Open }}
       <li>
-        <p class="meta">{{ .File }}:{{ .Span.Start }}{{ if gt .Span.Lines 1 }}-{{ .Span.End }}{{ end }} · {{ .Author }}</p>
+        <p class="meta">
+          <a href="#L-{{ .File }}-{{ .Span.Side }}-{{ .Span.Start }}">{{ .File }}:{{ .Span.Start }}{{ if gt .Span.Lines 1 }}-{{ .Span.End }}{{ end }}</a>
+          · {{ .Author }}
+        </p>
         <p class="body">{{ .Body }}</p>
         <button class="quiet" data-resolve="{{ .ID }}">resolve</button>
       </li>
     {{ end }}
   </ul>
-
-  <button class="quiet wide" data-handover {{ if not .Open }}disabled{{ end }}>
-    {{ if .Open }}Hand {{ len .Open }} over to the agent{{ else }}Nothing to hand over{{ end }}
-  </button>
-
-  <button class="land" data-land {{ if not .Landable }}disabled{{ end }}>
-    {{ if .Landable }}Land onto {{ .Proposal.Target }}{{ else }}Blocked{{ end }}
-  </button>
-
-  {{ if .Blocked }}<p class="muted blocked">{{ .Blocked }}</p>{{ end }}
-
-  <button class="quiet wide" data-abandon>Give up on this one</button>
 </div>

@@ -1,88 +1,81 @@
 <div id="page">
+  <div class="bar">
+    <div class="what">
       <h1>{{ .Proposal.Title }}</h1>
       <p class="meta">
-        {{ .ID }} · onto {{ .Proposal.Target }} · revision {{ .Proposal.Head.Number }} ·
-        <span class="added">+{{ .Added }}</span> <span class="removed">−{{ .Removed }}</span>
+        onto {{ .Proposal.Target }} · revision {{ .Proposal.Head.Number }} ·
+        <span class="added">+{{ .Added }}</span> <span class="removed">&minus;{{ .Removed }}</span>
       </p>
+    </div>
 
-      {{ if .Revised }}
-        <p class="scope">
-          {{ if .Since }}
-            <a href="/p/{{ .ID }}">the whole proposal</a>
-            <span class="here">what revision {{ .Proposal.Head.Number }} changed</span>
-          {{ else }}
-            <span class="here">the whole proposal</span>
-            <a href="/p/{{ .ID }}?since={{ .Previous }}">what revision {{ .Proposal.Head.Number }} changed</a>
-          {{ end }}
-        </p>
-      {{ end }}
+    {{ if .Revised }}
+      <p class="scope">
+        {{ if .Since }}
+          <a href="/p/{{ .ID }}">the whole proposal</a>
+          <span class="here">what revision {{ .Proposal.Head.Number }} changed</span>
+        {{ else }}
+          <span class="here">the whole proposal</span>
+          <a href="/p/{{ .ID }}?since={{ .Previous }}">what revision {{ .Proposal.Head.Number }} changed</a>
+        {{ end }}
+      </p>
+    {{ end }}
 
-      {{ if .Chunks }}
-        <section class="decisions">
-          <h2>What this decides</h2>
-          <ol class="chunks">
-            {{ range .Chunks }}
-              {{ $anchor := $.Anchor . }}
-              <li>
-                <p class="head">
-                  {{ if $anchor }}<a href="#{{ $anchor }}">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end }}
-                  {{ if .Surface }}<span class="surface">{{ .Surface }}</span>{{ end }}
-                </p>
-                <dl class="shift">
-                  <dt>was</dt><dd>{{ .Before }}</dd>
-                  <dt>now</dt><dd>{{ .After }}</dd>
-                  <dt>call</dt><dd>{{ .Decision }}</dd>
-                  {{ if .Rejected }}<dt>instead of</dt><dd class="rejected">{{ .Rejected }}</dd>{{ end }}
-                </dl>
-              </li>
-            {{ end }}
-          </ol>
-        </section>
-      {{ end }}
+    <span class="spacer"></span>
 
-      <div class="columns">
-        <section class="diff">
-          {{ range .Files }}
-            <div class="file">
-            <h2>
-              {{ .Path }}
-              <span class="counts"><span class="added">+{{ .Added }}</span> <span class="removed">−{{ .Removed }}</span></span>
-            </h2>
-            {{ $file := .Path }}
-            {{ range .Hunks }}
-              <div class="hunk">
-                <div class="hunk-header">{{ .Header }}</div>
-                {{ range .Lines }}
-                  {{ $side := sideNew }}{{ $no := .New }}
-                  {{ if eq .Kind "removed" }}{{ $side = sideOld }}{{ $no = .Old }}{{ end }}
-                  <div
-                    class="line {{ .Kind }}{{ if $.Noted $file $side $no }} noted{{ end }}"
-                    data-file="{{ $file }}"
-                    data-side="{{ $side }}"
-                    data-no="{{ $no }}"
-                    data-line="{{ $side }}:{{ $no }}"
-                    id="L-{{ $file }}-{{ $side }}-{{ $no }}"
-                  >
-                    <span class="no old">{{ if .Old }}{{ .Old }}{{ end }}</span>
-                    <span class="no new">{{ if .New }}{{ .New }}{{ end }}</span>
-                    <span class="text">{{ .Text }}</span>
+    {{ template "actions.html" . }}
+  </div>
+
+  <div class="columns">
+    <aside class="left">
+      {{ template "panel.html" . }}
+    </aside>
+
+    <section class="diff">
+      {{ range .Files }}
+        <div class="file" data-path="{{ .Path }}">
+          <h2>
+            <span class="name"><span class="fold">&#9662;</span> {{ .Path }}</span>
+            <span class="counts">
+              {{ range $.DecidesIn .Path }}<a class="chip" href="#d{{ .N }}">{{ .N }}</a>{{ end }}
+              <span class="added">+{{ .Added }}</span> <span class="removed">&minus;{{ .Removed }}</span>
+            </span>
+          </h2>
+          {{ $file := .Path }}
+          {{ range .Hunks }}
+            <div class="hunk">
+              <div class="hunk-header">{{ .Header }}</div>
+              {{ range .Lines }}
+                {{ $side := sideNew }}{{ $no := .New }}
+                {{ if eq .Kind "removed" }}{{ $side = sideOld }}{{ $no = .Old }}{{ end }}
+                <div
+                  class="line {{ .Kind }}{{ if $.Noted $file $side $no }} noted{{ end }}"
+                  data-file="{{ $file }}"
+                  data-side="{{ $side }}"
+                  data-no="{{ $no }}"
+                  data-line="{{ $side }}:{{ $no }}"
+                  id="L-{{ $file }}-{{ $side }}-{{ $no }}"
+                >
+                  <span class="no old">{{ if .Old }}{{ .Old }}{{ end }}</span>
+                  <span class="no new">{{ if .New }}{{ .New }}{{ end }}</span>
+                  <span class="text">{{ .Text }}</span>
+                </div>
+                {{ range $.DecidesAt $file $side $no }}
+                  <div class="decided">
+                    <a href="#d{{ .N }}">{{ .N }}. {{ .Chunk.Title }}</a>
                   </div>
-                  {{ range $.Explains $file $side $no }}
-                    <div class="explains">
-                      <span class="who">{{ .Author }}</span>{{ .Body }}
-                    </div>
-                  {{ end }}
                 {{ end }}
-              </div>
-            {{ end }}
+                {{ range $.Explains $file $side $no }}
+                  <div class="explains">
+                    <span class="who">{{ .Author }}</span>{{ .Body }}
+                  </div>
+                {{ end }}
+              {{ end }}
             </div>
-          {{ else }}
-            <p class="muted">This proposal changes nothing.</p>
           {{ end }}
-        </section>
-
-        <aside>
-          {{ template "panel.html" . }}
-        </aside>
-      </div>
+        </div>
+      {{ else }}
+        <p class="muted">This proposal changes nothing.</p>
+      {{ end }}
+    </section>
+  </div>
 </div>

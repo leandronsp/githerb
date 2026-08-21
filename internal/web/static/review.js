@@ -115,8 +115,51 @@
     dragging = false;
   });
 
+  // A file folds away when it is not the one being read. The set is kept here
+  // rather than in the DOM so a revision arriving does not unfold everything.
+  const folded = new Set();
+
+  const fold = () => {
+    for (const file of document.querySelectorAll(".file")) {
+      file.classList.toggle("folded", folded.has(file.dataset.path));
+    }
+  };
+
+  // The two columns scroll on their own, so a link between them has to say
+  // where it landed. Native anchor jumps put the line at the edge and leave it
+  // there unmarked.
+  const aim = (id) => {
+    const target = document.getElementById(id);
+    if (!target) return false;
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.remove("aimed");
+    void target.offsetWidth;
+    target.classList.add("aimed");
+
+    return true;
+  };
+
   document.addEventListener("click", (event) => {
     if (composer.contains(event.target)) return;
+
+    const jump = event.target.closest('a[href^="#"]');
+    if (jump && aim(decodeURIComponent(jump.getAttribute("href").slice(1)))) {
+      event.preventDefault();
+
+      return;
+    }
+
+    const head = event.target.closest(".file > h2");
+    if (head) {
+      const file = head.closest(".file");
+      folded.has(file.dataset.path)
+        ? folded.delete(file.dataset.path)
+        : folded.add(file.dataset.path);
+      fold();
+
+      return;
+    }
 
     const resolve = event.target.closest("[data-resolve]");
     if (resolve) post("resolve", { commentID: resolve.dataset.resolve });
@@ -126,7 +169,7 @@
     const hand = event.target.closest("[data-handover]");
     if (hand) handover(hand);
 
-    if (event.target.closest("[data-abandon]") && confirm("Give up on this proposal?")) {
+    if (event.target.closest("[data-abandon]") && confirm("Abandon this proposal?")) {
       post("abandon");
     }
   });
@@ -166,10 +209,17 @@
   // page without a reload and without taking your selection with it.
   const stream = new EventSource(`/p/${proposal}/events${location.search}`);
 
+  const swap = (id, html) => {
+    const node = document.getElementById(id);
+    if (node) node.outerHTML = html;
+  };
+
   stream.addEventListener("panel", (event) => {
-    const panel = document.getElementById("panel");
-    if (panel) panel.outerHTML = event.data;
+    swap("panel", event.data);
+    fold();
   });
+
+  stream.addEventListener("actions", (event) => swap("actions", event.data));
 
   // A new revision moves the lines, so the whole page is replaced and the
   // selection goes with it. The composer is parked inside the diff by then:
@@ -180,6 +230,7 @@
 
     document.body.append(composer);
     page.outerHTML = event.data;
+    fold();
     drop();
   });
 
