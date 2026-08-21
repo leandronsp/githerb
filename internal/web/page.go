@@ -50,25 +50,48 @@ func newPage(proposal review.Proposal, files []patch.File, required []review.Che
 	}
 }
 
+// Row is a proposal on the board with the size of what it carries, so the
+// list answers how big a thing is before it is opened.
+type Row struct {
+	Proposal review.Proposal
+	Added    int
+	Removed  int
+}
+
+// ID is the proposal's name, for the link.
+func (r Row) ID() string { return string(r.Proposal.ID()) }
+
+// Title is the proposal's one-line name.
+func (r Row) Title() string { return r.Proposal.Title() }
+
+// Target is the branch it lands on.
+func (r Row) Target() review.Branch { return r.Proposal.Target() }
+
+// Revision is the number of the head revision.
+func (r Row) Revision() int { return r.Proposal.Head().Number() }
+
+// Open is how many notes are still waiting for an answer.
+func (r Row) Open() int { return len(r.Proposal.Open()) }
+
 // Board is the dashboard: what is being reviewed, what got in, and what did
 // not, which is the answer to the only three questions anyone asks.
 type Board struct {
-	Open      []review.Proposal
-	Landed    []review.Proposal
-	Abandoned []review.Proposal
+	Open      []Row
+	Landed    []Row
+	Abandoned []Row
 }
 
-func newBoard(proposals []review.Proposal) Board {
+func newBoard(rows []Row) Board {
 	var board Board
 
-	for _, proposal := range proposals {
-		switch proposal.State() {
+	for _, row := range rows {
+		switch row.Proposal.State() {
 		case review.StateOpen:
-			board.Open = append(board.Open, proposal)
+			board.Open = append(board.Open, row)
 		case review.StateLanded:
-			board.Landed = append(board.Landed, proposal)
+			board.Landed = append(board.Landed, row)
 		case review.StateAbandoned:
-			board.Abandoned = append(board.Abandoned, proposal)
+			board.Abandoned = append(board.Abandoned, row)
 		}
 	}
 

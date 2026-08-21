@@ -32,7 +32,31 @@ func (s Server) index(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	s.render(w, "index", newBoard(proposals))
+	rows := make([]Row, 0, len(proposals))
+
+	for _, proposal := range proposals {
+		added, removed := s.size(proposal)
+		rows = append(rows, Row{Proposal: proposal, Added: added, Removed: removed})
+	}
+
+	s.render(w, "index", newBoard(rows))
+}
+
+// size is what the proposal adds up to. A proposal whose commits have gone
+// missing still belongs on the board, so this answers zero rather than failing
+// the whole page.
+func (s Server) size(proposal review.Proposal) (added, removed int) {
+	raw, err := s.Git.Diff(proposal.Base(), proposal.Head().SHA())
+	if err != nil {
+		return 0, 0
+	}
+
+	files, err := patch.Parse(raw)
+	if err != nil {
+		return 0, 0
+	}
+
+	return patch.Count(files)
 }
 
 func (s Server) review(w http.ResponseWriter, r *http.Request) {
