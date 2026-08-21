@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      const saved = localStorage.getItem("githerb:theme");
+      if (saved === "dark") document.documentElement.dataset.theme = "dark";
+    </script>
     <title>{{ .Proposal.Title }} · githerb</title>
     {{ template "style.html" }}
   </head>
@@ -9,6 +13,8 @@
     <header>
       <span class="wordmark">git<b>herb</b></span>
       <a href="/">all proposals</a>
+      <span class="spacer"></span>
+      <button class="theme" data-theme-toggle>dark</button>
     </header>
 
     <main>
@@ -21,6 +27,7 @@
       <div class="columns">
         <section class="diff">
           {{ range .Files }}
+            <div class="file">
             <h2>{{ .Path }}</h2>
             {{ $file := .Path }}
             {{ range .Hunks }}
@@ -30,7 +37,7 @@
                   {{ $side := sideNew }}{{ $no := .New }}
                   {{ if eq .Kind "removed" }}{{ $side = sideOld }}{{ $no = .Old }}{{ end }}
                   <div
-                    class="line {{ .Kind }}"
+                    class="line {{ .Kind }}{{ if $.Noted $file $side $no }} noted{{ end }}"
                     data-file="{{ $file }}"
                     data-side="{{ $side }}"
                     data-no="{{ $no }}"
@@ -43,22 +50,36 @@
                 {{ end }}
               </div>
             {{ end }}
+            </div>
           {{ else }}
             <p class="muted">This proposal changes nothing.</p>
           {{ end }}
         </section>
 
         <aside>
-          <div class="composer" hidden>
-            <p class="meta where"></p>
-            <textarea placeholder="what the agent should do about these lines"></textarea>
-            <button>Leave the note</button>
-          </div>
-
           {{ template "panel.html" . }}
         </aside>
       </div>
     </main>
+    <div class="composer" hidden>
+      <p class="meta where"></p>
+      <div class="row">
+        <textarea placeholder="what should the agent do about these lines?"></textarea>
+        <button>Leave it</button>
+      </div>
+      <p class="hint">cmd + enter to leave it · esc to drop the selection</p>
+    </div>
+
     <script src="/static/review.js"></script>
+    <script>
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest("[data-theme-toggle]")) return;
+        const root = document.documentElement;
+        const dark = root.dataset.theme === "dark";
+        dark ? delete root.dataset.theme : (root.dataset.theme = "dark");
+        localStorage.setItem("githerb:theme", dark ? "light" : "dark");
+        event.target.textContent = dark ? "dark" : "light";
+      });
+    </script>
   </body>
 </html>

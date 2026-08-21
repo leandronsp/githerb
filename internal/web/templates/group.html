@@ -1,0 +1,14 @@
+{{ if or .Proposals .Empty }}
+  <h2>{{ .Title }} {{ if .Proposals }}<span class="count">{{ len .Proposals }}</span>{{ end }}</h2>
+  {{ if not .Proposals }}<p class="muted">{{ .Empty }}</p>{{ end }}
+  <ul class="proposals">
+    {{ range .Proposals }}
+      <li>
+        <a href="/p/{{ .ID }}">{{ .Title }}</a>
+        <span class="meta">
+          r{{ .Head.Number }} · onto {{ .Target }}{{ if .Open }} · {{ len .Open }} open{{ end }}
+        </span>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}

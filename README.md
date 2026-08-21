@@ -77,8 +77,33 @@ There is no framework. The server renders HTML and the client is one file that
 holds the selection and swaps the panel when the stream says so. Nothing is
 fetched from a CDN, so it works on a plane.
 
+## The gate
+
+```toml
+# .githerb.toml
+[checks]
+gate = "make check"
+```
+
+`githerb check <proposal>` runs each command in a throwaway worktree of the head
+revision, not in your working tree, so the answer is about the code that would
+land rather than the code you happen to have open. The result is a record on the
+revision, and `land` refuses until every declared check has passed on the
+revision being landed. A new revision starts over, because the old result ran on
+other code.
+
+Who ran it is a field, not an architecture. The same record can come from your
+laptop, from a loop on a spare machine, or from whatever CI the project already
+pays for, and the gate cannot tell the difference.
+
+## What did not get in
+
+`githerb abandon <proposal>` gives up on one. It stays on the board next to what
+landed, because a decision not to ship something is worth as much next month as
+a decision to ship it.
+
 ## State
 
-There is no gate on a command yet, so landing checks that the review is clean,
-not that the tests pass. That is where CI goes, and the shape is already there:
-a note on the revision saying what was run and what it said.
+A proposal has to reach a branch for an external CI to notice it, so reading a
+verdict from Semaphore or Actions instead of running the command locally is not
+here yet. The record it would write already exists.

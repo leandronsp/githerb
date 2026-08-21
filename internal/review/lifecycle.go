@@ -12,8 +12,9 @@ type EventKind string
 
 // The moments a proposal has. Everything between them is annotation.
 const (
-	EventOpened EventKind = "opened"
-	EventLanded EventKind = "landed"
+	EventOpened    EventKind = "opened"
+	EventLanded    EventKind = "landed"
+	EventAbandoned EventKind = "abandoned"
 )
 
 // Event is one line of the proposal log: it opened, or it landed. Like every
@@ -58,8 +59,17 @@ func Opened(id ProposalID, title string, target Branch, base SHA, author string,
 	}, nil
 }
 
+// Abandoned is the event for a proposal that will not be landing.
+func Abandoned(id ProposalID, author string, at time.Time) (Event, error) {
+	return ending(EventAbandoned, id, author, at)
+}
+
 // Landed is the event that ends one.
 func Landed(id ProposalID, author string, at time.Time) (Event, error) {
+	return ending(EventLanded, id, author, at)
+}
+
+func ending(kind EventKind, id ProposalID, author string, at time.Time) (Event, error) {
 	author = strings.TrimSpace(author)
 
 	switch {
@@ -70,7 +80,7 @@ func Landed(id ProposalID, author string, at time.Time) (Event, error) {
 	}
 
 	return Event{
-		kind:   EventLanded,
+		kind:   kind,
 		id:     id,
 		title:  "",
 		target: "",
@@ -153,6 +163,8 @@ func ParseEvent(raw []byte) (Event, error) {
 		return Opened(ProposalID(l.ID), l.Title, Branch(l.Target), SHA(l.Base), l.Author, at)
 	case EventLanded:
 		return Landed(ProposalID(l.ID), l.Author, at)
+	case EventAbandoned:
+		return Abandoned(ProposalID(l.ID), l.Author, at)
 	default:
 		return Event{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}

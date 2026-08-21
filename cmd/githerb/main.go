@@ -36,7 +36,9 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb comments <proposal> [--json] [--all]
   githerb resolve <proposal> <comment>
   githerb revise <proposal> [revision]
+  githerb check <proposal>
   githerb land <proposal>
+  githerb abandon <proposal>
   githerb review [proposal]            open the review surface in a browser
   githerb version
 
@@ -69,6 +71,10 @@ func run(args []string) error {
 		return resolve(rest)
 	case "revise":
 		return revise(rest)
+	case "check":
+		return checkCmd(rest)
+	case "abandon":
+		return abandon(rest)
 	case "land":
 		return land(rest)
 	case "review":

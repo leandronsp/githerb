@@ -1,0 +1,4 @@
+# What a proposal has to pass before it can land. The command runs in a
+# throwaway worktree of the head revision, not in your working tree.
+[checks]
+gate = "make check"

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/leandronsp/githerb/internal/app"
+	"github.com/leandronsp/githerb/internal/config"
 	"github.com/leandronsp/githerb/internal/review"
 )
 
@@ -240,7 +241,7 @@ func land(args []string) error {
 		return err
 	}
 
-	use := app.Land{Proposals: s.proposals, Author: s.author, Now: s.now}
+	use := app.Land{Proposals: s.proposals, Required: s.config.Required(), Author: s.author, Now: s.now}
 
 	proposal, err := use.Run(args[0])
 	if err != nil {
@@ -248,6 +249,72 @@ func land(args []string) error {
 	}
 
 	fmt.Printf("%s landed onto %s at %s\n", proposal.ID(), proposal.Target(), short(proposal.Head().SHA()))
+
+	return nil
+}
+
+func checkCmd(args []string) error {
+	if len(args) == 0 {
+		return ErrUsage
+	}
+
+	s, err := newSession()
+	if err != nil {
+		return err
+	}
+
+	if len(s.config.Required()) == 0 {
+		fmt.Printf("no checks declared in %s\n", config.File)
+
+		return nil
+	}
+
+	use := app.Check{
+		Proposals: s.proposals,
+		Config:    s.config,
+		Root:      s.repo.Dir(),
+		Author:    s.author,
+		Now:       s.now,
+	}
+
+	results, err := use.Run(args[0])
+	if err != nil {
+		return err
+	}
+
+	failed := false
+
+	for _, result := range results {
+		fmt.Printf("%-16s %-7s %ds\n", result.Name(), result.Status(), result.Seconds())
+
+		failed = failed || !result.Passed()
+	}
+
+	if failed {
+		return fmt.Errorf("a check said no: %w", review.ErrCheckFailed)
+	}
+
+	return nil
+}
+
+func abandon(args []string) error {
+	if len(args) == 0 {
+		return ErrUsage
+	}
+
+	s, err := newSession()
+	if err != nil {
+		return err
+	}
+
+	use := app.Abandon{Proposals: s.proposals, Author: s.author, Now: s.now}
+
+	proposal, err := use.Run(args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s abandoned\n", proposal.ID())
 
 	return nil
 }

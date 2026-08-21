@@ -25,6 +25,9 @@ type Proposals interface {
 
 	// Land moves the target branch onto the proposal's head and records it.
 	Land(proposal Proposal, event Event) error
+
+	// Abandon records that a proposal will not be landing.
+	Abandon(proposal Proposal, event Event) error
 }
 
 // Git is the small part of git the application needs beyond storage: naming

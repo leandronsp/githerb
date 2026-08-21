@@ -9,6 +9,7 @@ import (
 // stack gets built before any of it reaches the trunk.
 type Land struct {
 	Proposals review.Proposals
+	Required  []review.CheckName
 	Author    string
 	Now       Clock
 }
@@ -20,7 +21,7 @@ func (l Land) Run(id string) (review.Proposal, error) {
 		return review.Proposal{}, err
 	}
 
-	landed, err := proposal.Landed()
+	landed, err := proposal.Landed(l.Required...)
 	if err != nil {
 		return review.Proposal{}, err
 	}

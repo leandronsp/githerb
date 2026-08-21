@@ -30,7 +30,7 @@ func (s Server) index(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	s.render(w, "index", map[string]any{"Proposals": proposals})
+	s.render(w, "index", newBoard(proposals))
 }
 
 func (s Server) review(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +128,7 @@ func (s Server) resolve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) land(w http.ResponseWriter, r *http.Request) {
-	use := app.Land{Proposals: s.Proposals, Author: s.Author, Now: s.Now}
+	use := app.Land{Proposals: s.Proposals, Required: s.Required, Author: s.Author, Now: s.Now}
 
 	if _, err := use.Run(r.PathValue("id")); err != nil {
 		s.fail(w, err)
@@ -141,6 +141,18 @@ func (s Server) land(w http.ResponseWriter, r *http.Request) {
 
 // clear puts the selection back, so the form empties the moment the comment
 // lands rather than waiting for the next stream tick.
+func (s Server) abandon(w http.ResponseWriter, r *http.Request) {
+	use := app.Abandon{Proposals: s.Proposals, Author: s.Author, Now: s.Now}
+
+	if _, err := use.Run(r.PathValue("id")); err != nil {
+		s.fail(w, err)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s Server) clear(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -176,5 +188,5 @@ func (s Server) page(id review.ProposalID) (Page, error) {
 		return Page{}, err
 	}
 
-	return newPage(proposal, files), nil
+	return newPage(proposal, files, s.Required), nil
 }

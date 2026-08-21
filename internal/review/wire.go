@@ -20,18 +20,21 @@ const idLength = 12
 // order is part of the contract: identical records must serialise to identical
 // bytes so git's cat_sort_uniq merge deduplicates them.
 type line struct {
-	Version int    `json:"v"`
-	Kind    Kind   `json:"kind"`
-	ID      ID     `json:"id"`
-	Target  ID     `json:"target,omitempty"`
-	Rev     SHA    `json:"rev,omitempty"`
-	File    File   `json:"file,omitempty"`
-	Side    Side   `json:"side,omitempty"`
-	Start   int    `json:"start,omitempty"`
-	End     int    `json:"end,omitempty"`
-	Body    string `json:"body,omitempty"`
-	Author  string `json:"author"`
-	At      string `json:"at"`
+	Version int         `json:"v"`
+	Kind    Kind        `json:"kind"`
+	ID      ID          `json:"id"`
+	Target  ID          `json:"target,omitempty"`
+	Rev     SHA         `json:"rev,omitempty"`
+	File    File        `json:"file,omitempty"`
+	Side    Side        `json:"side,omitempty"`
+	Start   int         `json:"start,omitempty"`
+	End     int         `json:"end,omitempty"`
+	Body    string      `json:"body,omitempty"`
+	Name    CheckName   `json:"name,omitempty"`
+	Status  CheckStatus `json:"status,omitempty"`
+	Seconds int         `json:"seconds,omitempty"`
+	Author  string      `json:"author"`
+	At      string      `json:"at"`
 }
 
 // MarshalLine renders the comment as the single line it is stored as.
@@ -39,6 +42,9 @@ func (c Comment) MarshalLine() ([]byte, error) { return marshal(c.line()) }
 
 // MarshalLine renders the resolution as the single line it is stored as.
 func (r Resolution) MarshalLine() ([]byte, error) { return marshal(r.line()) }
+
+// MarshalLine renders the check as the single line it is stored as.
+func (c Check) MarshalLine() ([]byte, error) { return marshal(c.line()) }
 
 func (c Comment) line() line {
 	return line{
@@ -52,6 +58,29 @@ func (c Comment) line() line {
 		Start:   c.span.start,
 		End:     c.span.end,
 		Body:    c.body,
+		Name:    "",
+		Status:  "",
+		Seconds: 0,
+		Author:  c.author,
+		At:      c.at.Format(time.RFC3339),
+	}
+}
+
+func (c Check) line() line {
+	return line{
+		Version: version,
+		Kind:    KindCheck,
+		ID:      "",
+		Target:  "",
+		Rev:     c.revision,
+		File:    "",
+		Side:    "",
+		Start:   0,
+		End:     0,
+		Body:    "",
+		Name:    c.name,
+		Status:  c.status,
+		Seconds: c.seconds,
 		Author:  c.author,
 		At:      c.at.Format(time.RFC3339),
 	}
@@ -69,6 +98,9 @@ func (r Resolution) line() line {
 		Start:   0,
 		End:     0,
 		Body:    "",
+		Name:    "",
+		Status:  "",
+		Seconds: 0,
 		Author:  r.author,
 		At:      r.at.Format(time.RFC3339),
 	}
@@ -142,6 +174,8 @@ func ParseLine(raw []byte) (Record, error) {
 		return parseComment(l, moment)
 	case KindResolve:
 		return parseResolution(l, moment)
+	case KindCheck:
+		return parseCheck(l, moment)
 	default:
 		return Record{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}
@@ -159,6 +193,15 @@ func parseComment(l line, at time.Time) (Record, error) {
 	}
 
 	return CommentRecord(comment), nil
+}
+
+func parseCheck(l line, at time.Time) (Record, error) {
+	check, err := NewCheck(l.Name, l.Status, l.Rev, l.Seconds, l.Author, at)
+	if err != nil {
+		return Record{}, err
+	}
+
+	return CheckRecord(check), nil
 }
 
 func parseResolution(l line, at time.Time) (Record, error) {

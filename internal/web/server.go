@@ -20,6 +20,7 @@ var static embed.FS
 type Server struct {
 	Proposals review.Proposals
 	Git       review.Git
+	Required  []review.CheckName
 	Author    string
 	Now       app.Clock
 }
@@ -72,6 +73,7 @@ func (s Server) routes() http.Handler {
 	mux.HandleFunc("POST /p/{id}/comment", s.comment)
 	mux.HandleFunc("POST /p/{id}/resolve", s.resolve)
 	mux.HandleFunc("POST /p/{id}/land", s.land)
+	mux.HandleFunc("POST /p/{id}/abandon", s.abandon)
 
 	return mux
 }

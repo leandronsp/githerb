@@ -22,6 +22,7 @@ type Proposal struct {
 	revisions []Revision
 	comments  []Comment
 	resolved  map[ID]bool
+	checks    map[CheckName]Check
 }
 
 // NewProposal opens a proposal at its first revision. The target is whichever
@@ -53,6 +54,7 @@ func NewProposal(id ProposalID, title string, target Branch, base, head SHA) (Pr
 		revisions: []Revision{{number: 1, sha: head}},
 		comments:  nil,
 		resolved:  map[ID]bool{},
+		checks:    map[CheckName]Check{},
 	}, nil
 }
 
@@ -118,6 +120,10 @@ func (p Proposal) WithRecord(record Record) (Proposal, error) {
 		resolution, _ := record.Resolution()
 
 		return p.withResolution(resolution)
+	case KindCheck:
+		check, _ := record.Check()
+
+		return p.withCheck(check)
 	default:
 		return Proposal{}, fmt.Errorf("%q: %w", record.Kind(), ErrUnknownKind)
 	}
@@ -139,8 +145,10 @@ func (p Proposal) Open() []Comment {
 	return open
 }
 
-// Landable reports why the proposal cannot land, and nil when it can.
-func (p Proposal) Landable() error {
+// Landable reports why the proposal cannot land, and nil when it can. The
+// required checks are the ones the repository declares; a proposal that
+// declares none is gated only by the review.
+func (p Proposal) Landable(required ...CheckName) error {
 	if p.state != StateOpen {
 		return fmt.Errorf("proposal is %s: %w", p.state, ErrNotOpen)
 	}
@@ -149,12 +157,25 @@ func (p Proposal) Landable() error {
 		return fmt.Errorf("%d on revision %d: %w", open, p.Head().number, ErrOpenComments)
 	}
 
+	current := p.Checks()
+
+	for _, name := range required {
+		check, ran := current[name]
+
+		switch {
+		case !ran:
+			return fmt.Errorf("%q: %w", name, ErrCheckMissing)
+		case !check.Passed():
+			return fmt.Errorf("%q: %w", name, ErrCheckFailed)
+		}
+	}
+
 	return nil
 }
 
-// Landed records that the head revision reached the trunk.
-func (p Proposal) Landed() (Proposal, error) {
-	if err := p.Landable(); err != nil {
+// Landed records that the head revision reached the target branch.
+func (p Proposal) Landed(required ...CheckName) (Proposal, error) {
+	if err := p.Landable(required...); err != nil {
 		return Proposal{}, err
 	}
 
@@ -186,6 +207,58 @@ func (p Proposal) withResolution(resolution Resolution) (Proposal, error) {
 
 	next := p.clone()
 	next.resolved[resolution.target] = true
+
+	return next, nil
+}
+
+// Checks are the results recorded against the head revision, by name. An older
+// revision's result is not carried forward, because it ran on other code.
+func (p Proposal) Checks() map[CheckName]Check {
+	head := p.Head().sha
+	current := map[CheckName]Check{}
+
+	for name, check := range p.checks {
+		if check.revision == head {
+			current[name] = check
+		}
+	}
+
+	return current
+}
+
+// Failing are the checks on the head revision that said no.
+func (p Proposal) Failing() []Check {
+	var failing []Check
+
+	for _, check := range p.Checks() {
+		if !check.Passed() {
+			failing = append(failing, check)
+		}
+	}
+
+	return failing
+}
+
+func (p Proposal) withCheck(check Check) (Proposal, error) {
+	if !p.knows(check.revision) {
+		return Proposal{}, fmt.Errorf("%q: %w", check.revision, ErrUnknownRevision)
+	}
+
+	next := p.clone()
+	next.checks[check.name] = check
+
+	return next, nil
+}
+
+// Abandoned gives up on a proposal, which is how something that did not get in
+// stays visible instead of disappearing.
+func (p Proposal) Abandoned() (Proposal, error) {
+	if p.state != StateOpen {
+		return Proposal{}, fmt.Errorf("proposal is %s: %w", p.state, ErrNotOpen)
+	}
+
+	next := p.clone()
+	next.state = StateAbandoned
 
 	return next, nil
 }
@@ -224,6 +297,11 @@ func (p Proposal) clone() Proposal {
 		resolved[id] = was
 	}
 
+	checks := make(map[CheckName]Check, len(p.checks))
+	for name, check := range p.checks {
+		checks[name] = check
+	}
+
 	return Proposal{
 		id:        p.id,
 		title:     p.title,
@@ -233,5 +311,6 @@ func (p Proposal) clone() Proposal {
 		revisions: revisions,
 		comments:  comments,
 		resolved:  resolved,
+		checks:    checks,
 	}
 }

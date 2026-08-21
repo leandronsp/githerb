@@ -46,7 +46,13 @@ func reviewSurface(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	server := web.Server{Proposals: s.proposals, Git: s.git, Author: s.author, Now: s.now}
+	server := web.Server{
+		Proposals: s.proposals,
+		Git:       s.git,
+		Required:  s.config.Required(),
+		Author:    s.author,
+		Now:       s.now,
+	}
 
 	if err := server.Serve(ctx, listener); err != nil && !errors.Is(err, web.ErrClosed) {
 		return err

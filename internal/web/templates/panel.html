@@ -1,4 +1,17 @@
 <div id="panel">
+  {{ if .Checks }}
+    <h2>Checks</h2>
+    <ul class="checks">
+      {{ range .Checks }}
+        <li class="{{ .Status }}">
+          <span class="name">{{ .Name }}</span>
+          <span class="status">{{ .Status }}</span>
+          <span class="meta">{{ .Seconds }}s</span>
+        </li>
+      {{ end }}
+    </ul>
+  {{ end }}
+
   <h2>Open notes <span class="count">{{ len .Open }}</span></h2>
 
   {{ if not .Open }}<p class="muted">Nothing open on this revision.</p>{{ end }}
@@ -14,6 +27,10 @@
   </ul>
 
   <button class="land" data-land {{ if not .Landable }}disabled{{ end }}>
-    {{ if .Landable }}Land onto {{ .Proposal.Target }}{{ else }}{{ len .Open }} to answer first{{ end }}
+    {{ if .Landable }}Land onto {{ .Proposal.Target }}{{ else }}Blocked{{ end }}
   </button>
+
+  {{ if .Blocked }}<p class="muted blocked">{{ .Blocked }}</p>{{ end }}
+
+  <button class="quiet wide" data-abandon>Give up on this one</button>
 </div>

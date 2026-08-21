@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -15,7 +16,29 @@ import (
 //go:embed templates
 var templates embed.FS
 
+var errUnevenDict = errors.New("dict wants pairs of key and value")
+
 var pages = template.Must(template.New("").Funcs(template.FuncMap{
+	// dict lets a shared partial be called with a few named values, which is
+	// the one thing html/template leaves out.
+	"dict": func(pairs ...any) (map[string]any, error) {
+		if len(pairs)%2 != 0 {
+			return nil, errUnevenDict
+		}
+
+		out := make(map[string]any, len(pairs)/2)
+
+		for i := 0; i < len(pairs); i += 2 {
+			key, ok := pairs[i].(string)
+			if !ok {
+				return nil, errUnevenDict
+			}
+
+			out[key] = pairs[i+1]
+		}
+
+		return out, nil
+	},
 	"sideNew": func() review.Side { return review.SideNew },
 	"sideOld": func() review.Side { return review.SideOld },
 	"short": func(sha review.SHA) string {

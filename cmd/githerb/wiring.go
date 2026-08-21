@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/leandronsp/githerb/internal/config"
 	"github.com/leandronsp/githerb/internal/gitstore"
 	"github.com/leandronsp/githerb/internal/review"
 )
@@ -16,6 +17,7 @@ type session struct {
 	repo      gitstore.Repo
 	proposals review.Proposals
 	git       review.Git
+	config    config.Config
 	author    string
 }
 
@@ -27,10 +29,16 @@ func newSession() (session, error) {
 
 	repo := gitstore.Open(root)
 
+	loaded, err := config.Load(root)
+	if err != nil {
+		return session{}, err
+	}
+
 	return session{
 		repo:      repo,
 		proposals: gitstore.NewStore(repo),
 		git:       repo,
+		config:    loaded,
 		author:    author(repo),
 	}, nil
 }

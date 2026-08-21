@@ -2,22 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      const saved = localStorage.getItem("githerb:theme");
+      if (saved === "dark") document.documentElement.dataset.theme = "dark";
+    </script>
     <title>githerb</title>
     {{ template "style.html" }}
   </head>
   <body>
-    <header><span class="wordmark">git<b>herb</b></span></header>
+    <header>
+      <span class="wordmark">git<b>herb</b></span>
+      <span class="spacer"></span>
+      <button class="theme" data-theme-toggle>dark</button>
+    </header>
     <main>
       <h1>Proposals</h1>
-      {{ if not .Proposals }}<p class="muted">Nothing proposed yet.</p>{{ end }}
-      <ul class="proposals">
-        {{ range .Proposals }}
-          <li>
-            <a href="/p/{{ .ID }}">{{ .Title }}</a>
-            <span class="meta">{{ .State }} · r{{ .Head.Number }} · onto {{ .Target }}</span>
-          </li>
-        {{ end }}
-      </ul>
+
+      {{ template "group.html" dict "Title" "In review" "Proposals" .Open "Empty" "Nothing proposed yet." }}
+      {{ template "group.html" dict "Title" "Got in" "Proposals" .Landed "Empty" "Nothing has landed." }}
+      {{ template "group.html" dict "Title" "Did not" "Proposals" .Abandoned "Empty" "" }}
     </main>
+    <script>
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest("[data-theme-toggle]")) return;
+        const root = document.documentElement;
+        const dark = root.dataset.theme === "dark";
+        dark ? delete root.dataset.theme : (root.dataset.theme = "dark");
+        localStorage.setItem("githerb:theme", dark ? "light" : "dark");
+        event.target.textContent = dark ? "dark" : "light";
+      });
+    </script>
   </body>
 </html>

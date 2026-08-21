@@ -77,6 +77,11 @@ func (s Store) Land(proposal review.Proposal, event review.Event) error {
 	return s.appendEvent(s.firstRevision(proposal), event)
 }
 
+// Abandon records that a proposal will not be landing.
+func (s Store) Abandon(proposal review.Proposal, event review.Event) error {
+	return s.appendEvent(s.firstRevision(proposal), event)
+}
+
 // Load rebuilds a proposal from everything written about it.
 func (s Store) Load(id review.ProposalID) (review.Proposal, error) {
 	revisions, err := s.revisionsOf(id)
@@ -148,14 +153,29 @@ func open(id review.ProposalID, first review.Revision, events []review.Event) (r
 
 func landIfEnded(proposal review.Proposal, events []review.Event) (review.Proposal, error) {
 	for _, event := range events {
-		if event.Kind() == review.EventLanded {
-			landed, err := proposal.Landed()
-			if err != nil {
-				return review.Proposal{}, fmt.Errorf("proposal %q: %w", proposal.ID(), err)
-			}
+		var (
+			ended review.Proposal
+			err   error
+		)
 
-			return landed, nil
+		switch event.Kind() {
+		case review.EventLanded:
+			// The gate was answered when it landed. Reading it back is not the
+			// moment to ask again.
+			ended, err = proposal.Landed(nil...)
+		case review.EventAbandoned:
+			ended, err = proposal.Abandoned()
+		case review.EventOpened:
+			continue
+		default:
+			continue
 		}
+
+		if err != nil {
+			return review.Proposal{}, fmt.Errorf("proposal %q: %w", proposal.ID(), err)
+		}
+
+		return ended, nil
 	}
 
 	return proposal, nil
@@ -173,10 +193,10 @@ func (s Store) foldRecords(proposal review.Proposal, revisions []review.Revision
 		}
 
 		for _, record := range records {
-			if record.Kind() == review.KindComment {
-				comments = append(comments, record)
-			} else {
+			if record.Kind() == review.KindResolve {
 				resolutions = append(resolutions, record)
+			} else {
+				comments = append(comments, record)
 			}
 		}
 	}
@@ -339,6 +359,12 @@ func marshalRecord(record review.Record) (string, error) {
 		resolution, _ := record.Resolution()
 
 		line, err := resolution.MarshalLine()
+
+		return string(line), wrap(err)
+	case review.KindCheck:
+		check, _ := record.Check()
+
+		line, err := check.MarshalLine()
 
 		return string(line), wrap(err)
 	default:
