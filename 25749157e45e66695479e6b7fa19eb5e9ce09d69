@@ -1,2 +1,3 @@
 {"v":1,"kind":"chunk","id":"","file":"internal/review/proposal.go","side":"new","start":1,"end":1,"title":"The check summary moved to where it can be tested","surface":"internal","before":"cmd decided what the shortest true thing about the checks was","after":"the aggregate answers it, and web stopped keeping a second copy of the ordering","decision":"move it rather than test it in place, because cmd is not allowed to decide","rejected":"adding a test file under cmd, which would have blessed the wrong home","author":"","at":""}
 {"v":1,"kind":"resolve","id":"4848506479a9","target":"c3bd44dc879a","author":"claude-code","at":"2026-08-21T22:04:08Z"}
+{"v":1,"kind":"resolve","id":"4e5cbe454985","target":"ba94dcb8f95e","author":"claude-code","at":"2026-08-21T22:04:08Z"}
