@@ -54,6 +54,13 @@ Named types over primitives, unexported fields with a validating constructor,
 closed sets as named types with an exhaustive switch. The full rules are in
 `.claude/rules/typing.md` and `.golangci.yml` fails the build on each one.
 
+### The browser holds nothing but the selection
+
+The server renders HTML and pushes fragments over an event stream. The client
+is one file, it knows which lines are selected and nothing else, and it fetches
+nothing from a CDN. A page that disagrees with the repository is a bug in the
+stream, never a second copy of the state.
+
 ### TDD, and green is not the end
 
 Write the failing test, make it pass, then break the line it protects and

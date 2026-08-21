@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ .Proposal.Title }} · githerb</title>
+    {{ template "style.html" }}
+  </head>
+  <body data-proposal="{{ .ID }}">
+    <header>
+      <span class="wordmark">git<b>herb</b></span>
+      <a href="/">all proposals</a>
+    </header>
+
+    <main>
+      <h1>{{ .Proposal.Title }}</h1>
+      <p class="meta">
+        {{ .ID }} · onto {{ .Proposal.Target }} · cut from {{ short .Proposal.Base }} ·
+        revision {{ .Proposal.Head.Number }}
+      </p>
+
+      <div class="columns">
+        <section class="diff">
+          {{ range .Files }}
+            <h2>{{ .Path }}</h2>
+            {{ $file := .Path }}
+            {{ range .Hunks }}
+              <div class="hunk">
+                <div class="hunk-header">{{ .Header }}</div>
+                {{ range .Lines }}
+                  {{ $side := sideNew }}{{ $no := .New }}
+                  {{ if eq .Kind "removed" }}{{ $side = sideOld }}{{ $no = .Old }}{{ end }}
+                  <div
+                    class="line {{ .Kind }}"
+                    data-file="{{ $file }}"
+                    data-side="{{ $side }}"
+                    data-no="{{ $no }}"
+                    data-line="{{ $side }}:{{ $no }}"
+                  >
+                    <span class="no old">{{ if .Old }}{{ .Old }}{{ end }}</span>
+                    <span class="no new">{{ if .New }}{{ .New }}{{ end }}</span>
+                    <span class="text">{{ .Text }}</span>
+                  </div>
+                {{ end }}
+              </div>
+            {{ end }}
+          {{ else }}
+            <p class="muted">This proposal changes nothing.</p>
+          {{ end }}
+        </section>
+
+        <aside>
+          <div class="composer" hidden>
+            <p class="meta where"></p>
+            <textarea placeholder="what the agent should do about these lines"></textarea>
+            <button>Leave the note</button>
+          </div>
+
+          {{ template "panel.html" . }}
+        </aside>
+      </div>
+    </main>
+    <script src="/static/review.js"></script>
+  </body>
+</html>

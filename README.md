@@ -61,11 +61,24 @@ make install  # onto the PATH
 make check    # the gate: format, vet, lint, tests
 ```
 
+## Reviewing in a browser
+
+```bash
+githerb review [proposal]
+```
+
+Serves on loopback from the repository you are standing in. Click a line, shift
+click another to take a range, write what the agent should do about it. The
+panel keeps itself current over an event stream, so a note the agent answers in
+your terminal disappears from the page without a reload and without losing the
+lines you had selected.
+
+There is no framework. The server renders HTML and the client is one file that
+holds the selection and swaps the panel when the stream says so. Nothing is
+fetched from a CDN, so it works on a plane.
+
 ## State
 
-The browser review surface is not here yet. Everything the loop needs works
-from the terminal, and the annotation format is deliberately the same one the
-web will write.
-
-There is no gate on a command yet, so landing checks only that the review is
-clean, not that the tests pass.
+There is no gate on a command yet, so landing checks that the review is clean,
+not that the tests pass. That is where CI goes, and the shape is already there:
+a note on the revision saying what was run and what it said.

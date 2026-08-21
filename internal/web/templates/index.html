@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>githerb</title>
+    {{ template "style.html" }}
+  </head>
+  <body>
+    <header><span class="wordmark">git<b>herb</b></span></header>
+    <main>
+      <h1>Proposals</h1>
+      {{ if not .Proposals }}<p class="muted">Nothing proposed yet.</p>{{ end }}
+      <ul class="proposals">
+        {{ range .Proposals }}
+          <li>
+            <a href="/p/{{ .ID }}">{{ .Title }}</a>
+            <span class="meta">{{ .State }} · r{{ .Head.Number }} · onto {{ .Target }}</span>
+          </li>
+        {{ end }}
+      </ul>
+    </main>
+  </body>
+</html>

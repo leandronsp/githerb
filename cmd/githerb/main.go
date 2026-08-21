@@ -37,6 +37,7 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb resolve <proposal> <comment>
   githerb revise <proposal> [revision]
   githerb land <proposal>
+  githerb review [proposal]            open the review surface in a browser
   githerb version
 
 Everything lives in the repository: proposals are refs under
@@ -70,6 +71,8 @@ func run(args []string) error {
 		return revise(rest)
 	case "land":
 		return land(rest)
+	case "review":
+		return reviewSurface(rest)
 	case "version":
 		fmt.Println(version)
 

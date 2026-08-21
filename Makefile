@@ -7,7 +7,7 @@ LINT    := $(GOBIN)/golangci-lint
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: help build install run test cover check lint fmt vet tidy tools clean
+.PHONY: help build install run test cover check lint fmt vet tidy tools smoke clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -48,6 +48,9 @@ tools: $(LINT) ## Install the tools the gate needs
 
 $(LINT):
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+smoke: build ## End to end in a browser: propose, annotate, watch it move, land
+	@bin/smoke.sh
 
 clean: ## Remove build output
 	rm -rf bin dist coverage.out

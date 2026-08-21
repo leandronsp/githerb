@@ -1,0 +1,19 @@
+<div id="panel">
+  <h2>Open notes <span class="count">{{ len .Open }}</span></h2>
+
+  {{ if not .Open }}<p class="muted">Nothing open on this revision.</p>{{ end }}
+
+  <ul class="notes">
+    {{ range .Open }}
+      <li>
+        <p class="meta">{{ .File }}:{{ .Span.Start }}{{ if gt .Span.Lines 1 }}-{{ .Span.End }}{{ end }} · {{ .Author }}</p>
+        <p class="body">{{ .Body }}</p>
+        <button class="quiet" data-resolve="{{ .ID }}">resolve</button>
+      </li>
+    {{ end }}
+  </ul>
+
+  <button class="land" data-land {{ if not .Landable }}disabled{{ end }}>
+    {{ if .Landable }}Land onto {{ .Proposal.Target }}{{ else }}{{ len .Open }} to answer first{{ end }}
+  </button>
+</div>
