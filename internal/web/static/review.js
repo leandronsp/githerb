@@ -139,10 +139,23 @@
   // The server watches the repository and pushes the panel whenever what it
   // adds up to changes, so a note the agent answers in your terminal leaves the
   // page without a reload and without taking your selection with it.
-  const stream = new EventSource(`/p/${proposal}/events`);
+  const stream = new EventSource(`/p/${proposal}/events${location.search}`);
+
   stream.addEventListener("panel", (event) => {
     const panel = document.getElementById("panel");
     if (panel) panel.outerHTML = event.data;
+  });
+
+  // A new revision moves the lines, so the whole page is replaced and the
+  // selection goes with it. The composer is parked inside the diff by then:
+  // it has to come out before the swap or it is destroyed along with it.
+  stream.addEventListener("page", (event) => {
+    const page = document.getElementById("page");
+    if (!page) return;
+
+    document.body.append(composer);
+    page.outerHTML = event.data;
+    drop();
   });
 
   paint();

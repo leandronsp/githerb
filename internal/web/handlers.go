@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/leandronsp/githerb/internal/app"
@@ -34,7 +35,9 @@ func (s Server) index(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s Server) review(w http.ResponseWriter, r *http.Request) {
-	page, err := s.page(review.ProposalID(r.PathValue("id")))
+	since, _ := strconv.Atoi(r.URL.Query().Get("since"))
+
+	page, err := s.page(review.ProposalID(r.PathValue("id")), since)
 	if err != nil {
 		s.fail(w, err)
 
@@ -45,9 +48,9 @@ func (s Server) review(w http.ResponseWriter, r *http.Request) {
 }
 
 // events keeps the page current. Git has nothing to subscribe to, so this
-// watches: it reloads the proposal and pushes the panel whenever what it adds
-// up to has changed, which is how an annotation resolved from the terminal
-// shows up here.
+// watches: it reloads the proposal and pushes whatever moved. A new revision
+// changes the diff and the decisions too, so that one replaces the page rather
+// than the panel, which is what makes this feel like the page reloaded itself.
 func (s Server) events(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -60,21 +63,29 @@ func (s Server) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 
 	id := review.ProposalID(r.PathValue("id"))
-	last := ""
+	since, _ := strconv.Atoi(r.URL.Query().Get("since"))
+
+	var mark, head string
 
 	ticker := time.NewTicker(400 * time.Millisecond)
 	defer ticker.Stop()
 
 	for {
-		page, err := s.page(id)
+		page, err := s.page(id, since)
 		if err != nil {
 			return
 		}
 
-		if page.Fingerprint != last {
-			last = page.Fingerprint
+		if page.Fingerprint != mark {
+			fragment := "panel"
+			if string(page.Proposal.Head().SHA()) != head {
+				fragment = "page"
+			}
 
-			if err := s.patch(w, "panel", page); err != nil {
+			mark = page.Fingerprint
+			head = string(page.Proposal.Head().SHA())
+
+			if err := s.patch(w, fragment, page); err != nil {
 				return
 			}
 
@@ -172,13 +183,23 @@ func read(r *http.Request) (selection, error) {
 	return want, nil
 }
 
-func (s Server) page(id review.ProposalID) (Page, error) {
+// page renders either the whole proposal or only what the last revision
+// changed, which is what a reviewer coming back to it actually wants to see.
+func (s Server) page(id review.ProposalID, since int) (Page, error) {
 	proposal, err := s.Proposals.Load(id)
 	if err != nil {
 		return Page{}, err
 	}
 
-	raw, err := s.Git.Diff(proposal.Base(), proposal.Head().SHA())
+	from := proposal.Base()
+
+	for _, revision := range proposal.Revisions() {
+		if since > 0 && revision.Number() == since {
+			from = revision.SHA()
+		}
+	}
+
+	raw, err := s.Git.Diff(from, proposal.Head().SHA())
 	if err != nil {
 		return Page{}, err
 	}
@@ -188,5 +209,5 @@ func (s Server) page(id review.ProposalID) (Page, error) {
 		return Page{}, err
 	}
 
-	return newPage(proposal, files, s.Required), nil
+	return newPage(proposal, files, s.Required, since), nil
 }

@@ -13,6 +13,7 @@ import (
 // Page is everything the review template needs, worked out once.
 type Page struct {
 	Proposal    review.Proposal
+	Since       int
 	Files       []patch.File
 	Open        []review.Comment
 	Chunks      []review.Chunk
@@ -22,7 +23,7 @@ type Page struct {
 	Fingerprint string
 }
 
-func newPage(proposal review.Proposal, files []patch.File, required []review.CheckName) Page {
+func newPage(proposal review.Proposal, files []patch.File, required []review.CheckName, since int) Page {
 	open := proposal.Open()
 
 	blocked := ""
@@ -32,6 +33,7 @@ func newPage(proposal review.Proposal, files []patch.File, required []review.Che
 
 	return Page{
 		Proposal:    proposal,
+		Since:       since,
 		Files:       files,
 		Open:        open,
 		Chunks:      proposal.Chunks(),
@@ -101,6 +103,13 @@ func (p Page) Anchor(chunk review.Chunk) string {
 
 	return fmt.Sprintf("L-%s-%s-%d", chunk.File(), chunk.Span().Side(), chunk.Span().Start())
 }
+
+// Revised reports whether there is an earlier revision to compare against,
+// which is the only question a reviewer coming back actually has.
+func (p Page) Revised() bool { return len(p.Proposal.Revisions()) > 1 }
+
+// Previous is the revision before the head.
+func (p Page) Previous() int { return p.Proposal.Head().Number() - 1 }
 
 // Noted reports whether a line already carries an open note, so the diff can
 // say so where the eye already is rather than only in the panel.

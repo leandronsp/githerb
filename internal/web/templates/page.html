@@ -1,0 +1,82 @@
+<div id="page">
+      <h1>{{ .Proposal.Title }}</h1>
+      <p class="meta">
+        {{ .ID }} · onto {{ .Proposal.Target }} · cut from {{ short .Proposal.Base }} ·
+        revision {{ .Proposal.Head.Number }}
+      </p>
+
+      {{ if .Revised }}
+        <p class="scope">
+          {{ if .Since }}
+            <a href="/p/{{ .ID }}">the whole proposal</a>
+            <span class="here">what revision {{ .Proposal.Head.Number }} changed</span>
+          {{ else }}
+            <span class="here">the whole proposal</span>
+            <a href="/p/{{ .ID }}?since={{ .Previous }}">what revision {{ .Proposal.Head.Number }} changed</a>
+          {{ end }}
+        </p>
+      {{ end }}
+
+      {{ if .Chunks }}
+        <section class="decisions">
+          <h2>What this decides</h2>
+          <ol class="chunks">
+            {{ range .Chunks }}
+              {{ $anchor := $.Anchor . }}
+              <li>
+                <p class="head">
+                  {{ if $anchor }}<a href="#{{ $anchor }}">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end }}
+                  {{ if .Surface }}<span class="surface">{{ .Surface }}</span>{{ end }}
+                </p>
+                <p class="shift"><span class="was">{{ .Before }}</span> <span class="arrow">&rarr;</span> <span class="now">{{ .After }}</span></p>
+                <p class="call">{{ .Decision }}</p>
+                {{ if .Rejected }}<p class="rejected">not: {{ .Rejected }}</p>{{ end }}
+              </li>
+            {{ end }}
+          </ol>
+        </section>
+      {{ end }}
+
+      <div class="columns">
+        <section class="diff">
+          {{ range .Files }}
+            <div class="file">
+            <h2>{{ .Path }}</h2>
+            {{ $file := .Path }}
+            {{ range .Hunks }}
+              <div class="hunk">
+                <div class="hunk-header">{{ .Header }}</div>
+                {{ range .Lines }}
+                  {{ $side := sideNew }}{{ $no := .New }}
+                  {{ if eq .Kind "removed" }}{{ $side = sideOld }}{{ $no = .Old }}{{ end }}
+                  <div
+                    class="line {{ .Kind }}{{ if $.Noted $file $side $no }} noted{{ end }}"
+                    data-file="{{ $file }}"
+                    data-side="{{ $side }}"
+                    data-no="{{ $no }}"
+                    data-line="{{ $side }}:{{ $no }}"
+                    id="L-{{ $file }}-{{ $side }}-{{ $no }}"
+                  >
+                    <span class="no old">{{ if .Old }}{{ .Old }}{{ end }}</span>
+                    <span class="no new">{{ if .New }}{{ .New }}{{ end }}</span>
+                    <span class="text">{{ .Text }}</span>
+                  </div>
+                  {{ range $.Explains $file $side $no }}
+                    <div class="explains">
+                      <span class="who">{{ .Author }}</span>{{ .Body }}
+                    </div>
+                  {{ end }}
+                {{ end }}
+              </div>
+            {{ end }}
+            </div>
+          {{ else }}
+            <p class="muted">This proposal changes nothing.</p>
+          {{ end }}
+        </section>
+
+        <aside>
+          {{ template "panel.html" . }}
+        </aside>
+      </div>
+</div>

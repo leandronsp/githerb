@@ -108,23 +108,40 @@ do_land_blocked() {
 # The reactive proof: the browser is not touched, an agent answers from the
 # terminal, and the panel has to move on its own.
 do_live_update() {
-  local before after
-  before=$(js 'document.querySelector("#panel .count").innerText')
-  [ "$before" = "1" ] || return 1
+  [ "$(js 'document.querySelector("#panel .count").innerText')" = "1" ] || return 1
 
   cd "$WORK" || return 1
   local comment
   comment=$("$BIN" comments "$ID" | awk '{print $1}')
   [ -n "$comment" ] || return 1
 
-  printf 'one\nTWO_NAMED\ntwo and a half\nthree\nfour\n' > a.txt
-  git commit -qam "the fix"
-  "$BIN" revise "$ID" >/dev/null || return 1
   GITHERB_AUTHOR=claude-code "$BIN" resolve "$ID" "$comment" || return 1
 
   for _ in $(seq 1 20); do
-    after=$(js 'document.querySelector("#panel .count").innerText')
-    [ "$after" = "0" ] && return 0
+    [ "$(js 'document.querySelector("#panel .count").innerText')" = "0" ] && return 0
+    sleep 0.5
+  done
+  return 1
+}
+
+# A new revision moves the lines, so the whole page has to come back, not only
+# the panel. The mark survives a swap and dies on a reload, which is how this
+# tells the two apart.
+do_new_revision() {
+  agent-browser eval "window.__mark = 'held'" >/dev/null 2>&1
+  [ "$(js 'document.querySelector("#page .meta").innerText.includes("revision 1")')" = "true" ] || return 1
+
+  cd "$WORK" || return 1
+  printf 'one\nTWO_NAMED\ntwo and a half\nthree\nfour\n' > a.txt
+  git commit -qam "the fix"
+  "$BIN" revise "$ID" >/dev/null || return 1
+
+  for _ in $(seq 1 20); do
+    if [ "$(js 'document.querySelector("#page .meta").innerText.includes("revision 2")')" = "true" ]; then
+      [ "$(js 'window.__mark')" = "held" ] || return 1
+      [ "$(js 'document.querySelector(".scope") !== null')" = "true" ]
+      return $?
+    fi
     sleep 0.5
   done
   return 1
@@ -152,6 +169,7 @@ step "shift-click picks a range"   ""  do_select
 step "annotate in the browser"     ""  do_annotate
 step "landing is blocked"          ""  do_land_blocked
 step "the panel moves on its own"  ""  do_live_update
+step "a new revision redraws it"   ""  do_new_revision
 step "land from the browser"       ""  do_land_from_browser
 
 printf '%s\n' "${REPORT[@]}"

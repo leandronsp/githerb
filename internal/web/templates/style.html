@@ -91,6 +91,12 @@
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 2.5rem; align-items: start; }
   @media (max-width: 1050px) { .columns { grid-template-columns: 1fr; } }
 
+  .scope { margin: -1.25rem 0 1.75rem; font: 12px ui-monospace, monospace; }
+  .scope a, .scope .here { padding: .15rem .5rem; border: 1px solid var(--rule); border-radius: 3px; }
+  .scope a { text-decoration: none; color: var(--ink-soft); }
+  .scope a:hover { border-color: var(--edge); color: var(--ink); }
+  .scope .here { background: var(--herb-wash); border-color: var(--herb); color: var(--ink); }
+
   /* the decisions, which are the point of reading any of this */
   .decisions { margin-bottom: 2.5rem; max-width: 62rem; }
   .chunks { list-style: none; margin: 0; padding: 0; counter-reset: chunk; }
