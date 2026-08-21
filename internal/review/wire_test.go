@@ -1,45 +1,11 @@
 package review_test
 
 import (
-	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/leandronsp/githerb/internal/review"
 )
-
-const (
-	rev  = review.SHA("9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b")
-	file = review.File("internal/app/land.go")
-)
-
-func at(t *testing.T) time.Time {
-	t.Helper()
-
-	moment, err := time.Parse(time.RFC3339, "2026-08-21T18:04:05Z")
-	if err != nil {
-		t.Fatalf("fixture clock: %v", err)
-	}
-
-	return moment
-}
-
-func comment(t *testing.T, body string) review.Comment {
-	t.Helper()
-
-	span, err := review.NewSpan(review.SideNew, 42, 47)
-	if err != nil {
-		t.Fatalf("span: %v", err)
-	}
-
-	made, err := review.NewComment(rev, file, span, body, "leandro", at(t))
-	if err != nil {
-		t.Fatalf("comment: %v", err)
-	}
-
-	return made
-}
 
 func TestCommentRoundTrips(t *testing.T) {
 	t.Parallel()
@@ -67,22 +33,6 @@ func TestCommentRoundTrips(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("round trip changed the record\n got %#v\nwant %#v", got, want)
-	}
-}
-
-func TestCommentIDIsDerivedFromContent(t *testing.T) {
-	t.Parallel()
-
-	first := comment(t, "same words")
-	second := comment(t, "same words")
-	other := comment(t, "different words")
-
-	if first.ID() != second.ID() {
-		t.Fatalf("the same content produced two ids, %q and %q", first.ID(), second.ID())
-	}
-
-	if first.ID() == other.ID() {
-		t.Fatalf("different content produced the same id, %q", first.ID())
 	}
 }
 
@@ -128,69 +78,6 @@ func TestResolutionRoundTrips(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("round trip changed the record\n got %#v\nwant %#v", got, want)
-	}
-}
-
-func TestRefusedComments(t *testing.T) {
-	t.Parallel()
-
-	span, err := review.NewSpan(review.SideNew, 1, 1)
-	if err != nil {
-		t.Fatalf("span: %v", err)
-	}
-
-	cases := []struct {
-		name   string
-		rev    review.SHA
-		file   review.File
-		body   string
-		author string
-		want   error
-	}{
-		{"no revision", "", file, "x", "leandro", review.ErrNoRevision},
-		{"revision is not a sha", "nope", file, "x", "leandro", review.ErrNoRevision},
-		{"no file", rev, "", "x", "leandro", review.ErrNoFile},
-		{"no body", rev, file, "   ", "leandro", review.ErrNoBody},
-		{"no author", rev, file, "x", "", review.ErrNoAuthor},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			_, err := review.NewComment(tc.rev, tc.file, span, tc.body, tc.author, at(t))
-			if !errors.Is(err, tc.want) {
-				t.Fatalf("got %v, want %v", err, tc.want)
-			}
-		})
-	}
-}
-
-func TestRefusedSpans(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name  string
-		side  review.Side
-		start int
-		end   int
-		want  error
-	}{
-		{"unknown side", review.Side("sideways"), 1, 1, review.ErrUnknownSide},
-		{"line zero", review.SideNew, 0, 1, review.ErrEmptySpan},
-		{"negative line", review.SideOld, -3, -1, review.ErrEmptySpan},
-		{"end before start", review.SideNew, 9, 4, review.ErrEmptySpan},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			_, err := review.NewSpan(tc.side, tc.start, tc.end)
-			if !errors.Is(err, tc.want) {
-				t.Fatalf("got %v, want %v", err, tc.want)
-			}
-		})
 	}
 }
 

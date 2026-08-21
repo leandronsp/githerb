@@ -14,4 +14,15 @@ var (
 	ErrMalformed   = errors.New("not a record")
 	ErrVersion     = errors.New("a version of the format this build does not speak")
 	ErrUnknownKind = errors.New("a kind of record this build does not know")
+
+	// Refusals from the aggregate root.
+	ErrNoProposalID    = errors.New("a proposal must be named")
+	ErrNoTitle         = errors.New("a proposal must have a title")
+	ErrNothingProposed = errors.New("a proposal must move past its base")
+	ErrRevisionKnown   = errors.New("that revision is already on the proposal")
+	ErrUnknownRevision = errors.New("that revision is not on this proposal")
+	ErrUnknownComment  = errors.New("that comment is not on this proposal")
+	ErrOpenComments    = errors.New("the head revision still has open comments")
+	ErrNotOpen         = errors.New("the proposal is no longer open")
+	ErrUnknownState    = errors.New("a state this build does not know")
 )
