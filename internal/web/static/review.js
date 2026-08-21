@@ -123,10 +123,35 @@
 
     if (event.target.closest("[data-land]")) post("land");
 
+    const hand = event.target.closest("[data-handover]");
+    if (hand) handover(hand);
+
     if (event.target.closest("[data-abandon]") && confirm("Give up on this proposal?")) {
       post("abandon");
     }
   });
+
+  // The whole review, in one piece, on the clipboard. A reviewer leaves notes
+  // for an hour and hands them over once, the way an annotation buffer works.
+  const handover = async (button) => {
+    const brief = await (await fetch(`/p/${proposal}/handover`)).text();
+    if (!brief.trim()) return;
+
+    const said = button.textContent;
+
+    try {
+      await navigator.clipboard.writeText(brief);
+      button.textContent = "Copied. Paste it to your agent";
+    } catch {
+      // No clipboard permission: hand it over the way anything else is handed
+      // over on a terminal, by leaving it somewhere it can be selected.
+      box.value = brief;
+      button.textContent = "Clipboard refused. It is in the box";
+    }
+
+    button.dataset.handedOver = "1";
+    setTimeout(() => (button.textContent = said), 4000);
+  };
 
   send.addEventListener("click", leave);
 

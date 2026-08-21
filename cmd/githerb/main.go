@@ -35,6 +35,7 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb comment <proposal> --file F --line N[:M] [--side new|old] --body "..."
   githerb comments <proposal> [--json] [--all]
   githerb resolve <proposal> <comment>
+  githerb handover <proposal>          every open note as one brief, for an agent
   githerb revise <proposal> [revision]
   githerb describe <proposal> < description.json    the decisions, from an agent
   githerb describe --template                       the shape it takes
@@ -71,6 +72,8 @@ func run(args []string) error {
 		return comments(rest)
 	case "resolve":
 		return resolve(rest)
+	case "handover":
+		return handover(rest)
 	case "revise":
 		return revise(rest)
 	case "describe":

@@ -111,6 +111,17 @@ do_counts() {
   [ "$(js 'document.querySelector("#page .meta .removed").innerText.length')" = "2" ]
 }
 
+# One button hands the whole review over, the way an annotation buffer does.
+# A headless browser has no clipboard permission, so the fallback path is the
+# one under test here: either way the brief has to be somewhere to paste from.
+do_handover() {
+  curl -sf "$WEB/p/$ID/handover" | grep -q "these two want a name" || return 1
+
+  click '[data-handover]' false || return 1
+  sleep 1
+  [ "$(js 'document.querySelector("[data-handover]").dataset.handedOver')" = "1" ]
+}
+
 # The reactive proof: the browser is not touched, an agent answers from the
 # terminal, and the panel has to move on its own.
 do_live_update() {
@@ -175,6 +186,7 @@ step "shift-click picks a range"   ""  do_select
 step "annotate in the browser"     ""  do_annotate
 step "landing is blocked"          ""  do_land_blocked
 step "the header counts the diff"  ""  do_counts
+step "hand the review over"        ""  do_handover
 step "the panel moves on its own"  ""  do_live_update
 step "a new revision redraws it"   ""  do_new_revision
 step "land from the browser"       ""  do_land_from_browser

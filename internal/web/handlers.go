@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -98,6 +99,27 @@ func (s Server) events(w http.ResponseWriter, r *http.Request) {
 		case <-ticker.C:
 		}
 	}
+}
+
+// handover hands the whole review to the agent in one piece, which is the
+// shape a person actually reviews in: leave notes for an hour, then send them
+// all at once.
+func (s Server) handover(w http.ResponseWriter, r *http.Request) {
+	proposal, err := s.Proposals.Load(review.ProposalID(r.PathValue("id")))
+	if err != nil {
+		s.fail(w, err)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// gosec reads any repository content on a response as an injection. This
+	// one is plain text the browser is told not to sniff, and the only reader
+	// is the clipboard.
+	//nolint:gosec // see above
+	_, _ = io.WriteString(w, proposal.Handover())
 }
 
 func (s Server) comment(w http.ResponseWriter, r *http.Request) {

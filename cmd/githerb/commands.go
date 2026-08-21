@@ -203,6 +203,26 @@ func printComment(comment review.Comment, asJSON bool) error {
 	return nil
 }
 
+// handover prints the whole review as one instruction, which is what the
+// browser button copies and what an agent can be handed directly.
+func handover(args []string) error {
+	proposal, _, err := loadOne(args)
+	if err != nil {
+		return err
+	}
+
+	brief := proposal.Handover()
+	if brief == "" {
+		fmt.Println("nothing open")
+
+		return nil
+	}
+
+	fmt.Print(brief)
+
+	return nil
+}
+
 func resolve(args []string) error {
 	if len(args) != 2 {
 		return ErrUsage

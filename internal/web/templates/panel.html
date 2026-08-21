@@ -26,6 +26,10 @@
     {{ end }}
   </ul>
 
+  <button class="quiet wide" data-handover {{ if not .Open }}disabled{{ end }}>
+    {{ if .Open }}Hand {{ len .Open }} over to the agent{{ else }}Nothing to hand over{{ end }}
+  </button>
+
   <button class="land" data-land {{ if not .Landable }}disabled{{ end }}>
     {{ if .Landable }}Land onto {{ .Proposal.Target }}{{ else }}Blocked{{ end }}
   </button>
