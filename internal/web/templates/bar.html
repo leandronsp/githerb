@@ -9,13 +9,15 @@
 
   {{ if .Revised }}
     <p class="scope">
-      {{ if .Since }}
-        <a href="/p/{{ .ID }}">the whole proposal</a>
-        <span class="here">what revision {{ .Proposal.Head.Number }} changed</span>
-      {{ else }}
-        <span class="here">the whole proposal</span>
-        <a href="/p/{{ .ID }}?since={{ .Previous }}">what revision {{ .Proposal.Head.Number }} changed</a>
+      <span class="label">diff from</span>
+      {{ range .Origins }}
+        {{ if .Active }}
+          <span class="here" title="{{ .SHA }}">{{ .Label }}</span>
+        {{ else }}
+          <a href="/p/{{ $.ID }}{{ if .Since }}?since={{ .Since }}{{ end }}" title="{{ .SHA }}">{{ .Label }}</a>
+        {{ end }}
       {{ end }}
+      <span class="label">to r{{ .Proposal.Head.Number }}</span>
     </p>
   {{ end }}
 

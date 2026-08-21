@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	base = review.SHA("00112233445566778899aabbccddeeff00112233")
-	head = review.SHA("9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b")
+	base   = review.SHA("00112233445566778899aabbccddeeff00112233")
+	head   = review.SHA("9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b")
+	second = review.SHA("1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d")
+	third  = review.SHA("b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80")
 )
 
 func decided(t *testing.T, title, surface, file string, line int) review.Chunk {
@@ -119,5 +121,39 @@ func TestABoardGroupsByState(t *testing.T) {
 
 	if row := board.Open[0]; row.ID() != "open" || row.Revision() != 1 || row.Added != 3 {
 		t.Fatalf("the row reads %+v", row)
+	}
+}
+
+func TestTheOriginsAreEveryPlaceTheDiffCanStart(t *testing.T) {
+	t.Parallel()
+
+	proposal, err := review.NewProposal("p", "A proposal", "main", base, head)
+	if err != nil {
+		t.Fatalf("proposal: %v", err)
+	}
+
+	for _, sha := range []review.SHA{second, third} {
+		proposal, err = proposal.WithRevision(sha)
+		if err != nil {
+			t.Fatalf("revise: %v", err)
+		}
+	}
+
+	origins := newPage(proposal, nil, nil, 2).Origins()
+
+	if len(origins) != 3 {
+		t.Fatalf("three revisions offer %d origins, want 3", len(origins))
+	}
+
+	if origins[0].Label != "base" || origins[0].Since != 0 || origins[0].SHA != base {
+		t.Fatalf("the first origin is %+v, want the base", origins[0])
+	}
+
+	if origins[2].Label != "r2" || !origins[2].Active {
+		t.Fatalf("the origin the page is showing is %+v, want r2 active", origins[2])
+	}
+
+	if origins[1].Active {
+		t.Fatalf("r1 says it is active while the page shows from r2")
 	}
 }

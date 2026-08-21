@@ -79,6 +79,12 @@ func show(args []string) error {
 		short(proposal.Base()), proposal.State(),
 		proposal.Head().Number(), len(proposal.Revisions()))
 
+	for _, revision := range proposal.Revisions() {
+		fmt.Printf("  r%-3d %s\n", revision.Number(), short(revision.SHA()))
+	}
+
+	fmt.Println()
+
 	for _, check := range proposal.SortedChecks() {
 		fmt.Printf("%-16s %s in %ds\n", check.Name(), check.Status(), check.Seconds())
 	}

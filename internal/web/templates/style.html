@@ -145,7 +145,8 @@
 
   .added { color: var(--herb); }
   .removed { color: var(--warn); }
-  .scope { margin: 0; font: 12px ui-monospace, monospace; }
+  .scope { margin: 0; font: 12px ui-monospace, monospace; display: flex; gap: .3rem; align-items: baseline; }
+  .scope .label { color: var(--ink-faint); }
   .scope a, .scope .here { padding: .15rem .5rem; border: 1px solid var(--rule); border-radius: 3px; }
   .scope a { text-decoration: none; color: var(--ink-soft); }
   .scope a:hover { border-color: var(--edge); color: var(--ink); }

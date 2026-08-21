@@ -193,8 +193,36 @@ func (p Page) Anchor(chunk review.Chunk) string {
 // which is the only question a reviewer coming back actually has.
 func (p Page) Revised() bool { return len(p.Proposal.Revisions()) > 1 }
 
-// Previous is the revision before the head.
-func (p Page) Previous() int { return p.Proposal.Head().Number() - 1 }
+// Origin is one place the diff can start from: the base the proposal was cut
+// from, or any revision before the head. The end is always the head, because
+// reviewing an old revision is reading history, not reviewing.
+type Origin struct {
+	Label  string
+	Since  int
+	SHA    review.SHA
+	Active bool
+}
+
+// Origins is the whole history as somewhere to diff from, so a reviewer can
+// see that nothing was lost between revisions and pick where to start.
+func (p Page) Origins() []Origin {
+	origins := []Origin{{Label: "base", Since: 0, SHA: p.Proposal.Base(), Active: p.Since == 0}}
+
+	for _, revision := range p.Proposal.Revisions() {
+		if revision.Number() == p.Proposal.Head().Number() {
+			continue
+		}
+
+		origins = append(origins, Origin{
+			Label:  fmt.Sprintf("r%d", revision.Number()),
+			Since:  revision.Number(),
+			SHA:    revision.SHA(),
+			Active: p.Since == revision.Number(),
+		})
+	}
+
+	return origins
+}
 
 // Noted reports whether a line already carries an open note, so the diff can
 // say so where the eye already is rather than only in the panel.
