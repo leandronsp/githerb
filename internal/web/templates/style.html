@@ -78,6 +78,23 @@
   .theme:focus-visible { outline-offset: 3px; }
 
   main { padding: 2.25rem 1.75rem 6rem; max-width: 1400px; }
+
+  /* The review page is a frame, not a document: the bar and the two columns
+     stay put and only the columns scroll, so the actions never leave. */
+  body[data-proposal] { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  body[data-proposal] main { flex: 1; min-height: 0; display: flex; padding: 0; max-width: none; }
+  #page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  .bar {
+    display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    padding: .8rem 1.5rem; border-bottom: 1px solid var(--rule); background: var(--raised);
+  }
+  .bar h1 { font-size: 16px; margin: 0; }
+  .bar .meta { margin: 0; }
+  .bar .spacer { flex: 1; }
+  #actions { display: flex; gap: .5rem; align-items: center; }
+  #actions .land { width: auto; margin: 0; }
+  #actions .blocked { margin-right: .5rem; color: var(--ink-faint); }
   h1 { font: 500 21px/1.3 ui-sans-serif, system-ui, sans-serif; margin: 0 0 .35rem; letter-spacing: -0.01em; }
   h2 {
     font: 500 11px/1 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase;
@@ -88,19 +105,36 @@
   .muted { color: var(--ink-soft); font-size: 14px; }
   a { color: var(--herb-deep); }
 
-  .columns { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 2.5rem; align-items: start; }
-  @media (max-width: 1050px) { .columns { grid-template-columns: 1fr; } }
+  .columns {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: minmax(20rem, 27rem) minmax(0, 1fr);
+  }
+  .left { overflow-y: auto; padding: 1.25rem 1.4rem 6rem; border-right: 1px solid var(--rule); }
+  .diff { overflow-y: auto; padding: 1.25rem 1.5rem 8rem; }
+  @media (max-width: 1050px) {
+    body[data-proposal] { height: auto; overflow: visible; }
+    .columns { grid-template-columns: 1fr; }
+    .left, .diff { overflow: visible; border-right: 0; }
+  }
+
+  /* an anchor lands under the file header without it, and a landed anchor
+     flashes so the eye finds the line it was sent to */
+  .line, .chunks li { scroll-margin-top: 4rem; }
+  .aimed { animation: aim 1.4s ease-out; }
+  @keyframes aim {
+    from { background: var(--pick); box-shadow: inset 2px 0 0 var(--pick-edge); }
+    to { background: transparent; }
+  }
 
   .added { color: var(--herb); }
   .removed { color: var(--warn); }
-  .scope { margin: -1.25rem 0 1.75rem; font: 12px ui-monospace, monospace; }
+  .scope { margin: 0; font: 12px ui-monospace, monospace; }
   .scope a, .scope .here { padding: .15rem .5rem; border: 1px solid var(--rule); border-radius: 3px; }
   .scope a { text-decoration: none; color: var(--ink-soft); }
   .scope a:hover { border-color: var(--edge); color: var(--ink); }
   .scope .here { background: var(--herb-wash); border-color: var(--herb); color: var(--ink); }
 
   /* the decisions, which are the point of reading any of this */
-  .decisions { margin-bottom: 2.5rem; max-width: 62rem; }
   .chunks { list-style: none; margin: 0; padding: 0; counter-reset: chunk; }
   .chunks li {
     counter-increment: chunk; padding: .85rem 0 .85rem 2.25rem;
@@ -117,13 +151,16 @@
   .chunks .surface {
     margin-left: .6rem; font: 11px ui-monospace, monospace; color: var(--ink-faint);
   }
+  .chunks .at { margin: 0 0 .4rem; font: 11px ui-monospace, monospace; }
+  .chunks .at a { color: var(--ink-faint); text-decoration: none; border-bottom: 1px dotted var(--edge); }
+  .chunks .at a:hover { color: var(--ink); }
   .shift {
-    display: grid; grid-template-columns: 5.5rem 1fr; gap: .1rem .75rem;
-    margin: 0; font-size: 13.5px;
+    display: grid; grid-template-columns: 5rem 1fr; gap: .1rem .6rem;
+    margin: 0; font-size: 13px;
   }
   .shift dt {
-    font: 10.5px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--ink-faint); padding-top: .28rem;
+    font: 10px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-faint); padding-top: .35rem; white-space: nowrap;
   }
   .shift dd { margin: 0; }
   .shift .rejected { color: var(--ink-soft); }
@@ -147,7 +184,23 @@
     font-size: 12px; letter-spacing: .04em; text-transform: none; color: var(--ink);
     font-family: ui-monospace, monospace;
   }
-  .file > h2 .counts { font-size: 11px; }
+  .file > h2 { cursor: pointer; user-select: none; }
+  .file > h2 .counts { font-size: 11px; display: flex; gap: .45rem; align-items: baseline; }
+  .file > h2 .fold { display: inline-block; width: .8rem; color: var(--ink-faint); }
+  .file.folded .fold { transform: rotate(-90deg); }
+  .file.folded .hunk { display: none; }
+
+  .chip {
+    font-size: 10.5px; text-decoration: none; color: var(--ink-soft);
+    border: 1px solid var(--rule); border-radius: 999px; padding: 0 .35rem;
+  }
+  .chip:hover { border-color: var(--herb); color: var(--ink); }
+
+  /* the decision, said again where the code is */
+  .decided { padding: .15rem 0 .15rem 5.1rem; font-size: 12px; }
+  .decided a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px dotted var(--edge); }
+  .decided a:hover { color: var(--ink); }
+
   .hunk { border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; margin-bottom: .85rem; background: var(--paper); }
   .hunk-header {
     background: var(--raised); color: var(--ink-faint);
@@ -206,7 +259,9 @@
   .wide { width: 100%; }
 
   /* the panel */
-  aside { position: sticky; top: 1.5rem; font-size: 14px; }
+  aside { font-size: 14px; }
+  .notes .meta a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px dotted var(--edge); }
+  .notes .meta a:hover { color: var(--ink); }
   .checks { list-style: none; margin: 0 0 1.5rem; padding: 0; }
   .checks li {
     display: flex; gap: .6rem; align-items: baseline; padding: .4rem 0;

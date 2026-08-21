@@ -111,6 +111,23 @@ do_counts() {
   [ "$(js 'document.querySelector("#page .meta .removed").innerText.length')" = "2" ]
 }
 
+# A file folds away when it is not the one being read, and unfolds again.
+do_fold() {
+  click '.file > h2' false || return 1
+  sleep 0.3
+  [ "$(js 'document.querySelector(".file").classList.contains("folded")')" = "true" ] || return 1
+  [ "$(js 'document.querySelector(".hunk").offsetParent === null')" = "true" ] || return 1
+
+  click '.file > h2' false || return 1
+  sleep 0.3
+  [ "$(js 'document.querySelector(".hunk").offsetParent !== null')" = "true" ]
+}
+
+# The board says how big a proposal is before anyone opens it.
+do_board() {
+  curl -sf "$WEB/" | tr -d '\n' | grep -q "+2"
+}
+
 # One button hands the whole review over, the way an annotation buffer does.
 # A headless browser has no clipboard permission, so the fallback path is the
 # one under test here: either way the brief has to be somewhere to paste from.
@@ -186,6 +203,8 @@ step "shift-click picks a range"   ""  do_select
 step "annotate in the browser"     ""  do_annotate
 step "landing is blocked"          ""  do_land_blocked
 step "the header counts the diff"  ""  do_counts
+step "a file folds away"           ""  do_fold
+step "the board sizes each one"    ""  do_board
 step "hand the review over"        ""  do_handover
 step "the panel moves on its own"  ""  do_live_update
 step "a new revision redraws it"   ""  do_new_revision

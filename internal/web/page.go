@@ -124,6 +124,62 @@ func (p Page) Explains(file string, side review.Side, line int) []review.Comment
 	return found
 }
 
+// Decision is a chunk with the number it wears on the page, so the diff and
+// the list of decisions can point at each other.
+type Decision struct {
+	N     int
+	Chunk review.Chunk
+}
+
+// Surface is the free-text label a decision carries, dropped when it only
+// repeats the file the decision already points at.
+func (d Decision) Surface() string {
+	if d.Chunk.Anchored() && strings.HasPrefix(string(d.Chunk.File()), d.Chunk.Surface()) {
+		return ""
+	}
+
+	return d.Chunk.Surface()
+}
+
+// Decisions numbers the chunks in the order they are rendered.
+func (p Page) Decisions() []Decision {
+	numbered := make([]Decision, 0, len(p.Chunks))
+
+	for i, chunk := range p.Chunks {
+		numbered = append(numbered, Decision{N: i + 1, Chunk: chunk})
+	}
+
+	return numbered
+}
+
+// DecidesIn are the decisions that landed in a file, for its header.
+func (p Page) DecidesIn(file string) []Decision {
+	var found []Decision
+
+	for _, decision := range p.Decisions() {
+		if decision.Chunk.Anchored() && string(decision.Chunk.File()) == file {
+			found = append(found, decision)
+		}
+	}
+
+	return found
+}
+
+// DecidesAt are the decisions anchored on a line, so the diff says what a
+// change was for where the change is.
+func (p Page) DecidesAt(file string, side review.Side, line int) []Decision {
+	var found []Decision
+
+	for _, decision := range p.DecidesIn(file) {
+		span := decision.Chunk.Span()
+		if span.Side() == side && span.Start() == line {
+			found = append(found, decision)
+		}
+	}
+
+	return found
+}
+
 // Anchor is the id a chunk points at, so the page can take the reader there.
 func (p Page) Anchor(chunk review.Chunk) string {
 	if !chunk.Anchored() {
