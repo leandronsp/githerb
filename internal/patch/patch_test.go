@@ -131,3 +131,25 @@ func TestDiffsWeRefuse(t *testing.T) {
 		})
 	}
 }
+
+func TestItCountsWhatChanged(t *testing.T) {
+	t.Parallel()
+
+	files, err := patch.Parse(sample)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got, want := files[0].Added(), 2; got != want {
+		t.Fatalf("a.txt added %d, want %d", got, want)
+	}
+
+	if got, want := files[0].Removed(), 1; got != want {
+		t.Fatalf("a.txt removed %d, want %d", got, want)
+	}
+
+	added, removed := patch.Count(files)
+	if added != 4 || removed != 1 {
+		t.Fatalf("the patch counts +%d -%d, want +4 -1", added, removed)
+	}
+}

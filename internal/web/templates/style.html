@@ -91,6 +91,8 @@
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 2.5rem; align-items: start; }
   @media (max-width: 1050px) { .columns { grid-template-columns: 1fr; } }
 
+  .added { color: var(--herb); }
+  .removed { color: var(--warn); }
   .scope { margin: -1.25rem 0 1.75rem; font: 12px ui-monospace, monospace; }
   .scope a, .scope .here { padding: .15rem .5rem; border: 1px solid var(--rule); border-radius: 3px; }
   .scope a { text-decoration: none; color: var(--ink-soft); }
@@ -115,12 +117,16 @@
   .chunks .surface {
     margin-left: .6rem; font: 11px ui-monospace, monospace; color: var(--ink-faint);
   }
-  .chunks .shift { margin: 0 0 .3rem; font-size: 13.5px; color: var(--ink-soft); }
-  .chunks .was { text-decoration: line-through; text-decoration-color: var(--del-edge); }
-  .chunks .now { color: var(--ink); }
-  .chunks .arrow { color: var(--herb); margin: 0 .3rem; }
-  .chunks .call { margin: 0; font-size: 13.5px; }
-  .chunks .rejected { margin: .2rem 0 0; font-size: 12.5px; color: var(--ink-faint); }
+  .shift {
+    display: grid; grid-template-columns: 5.5rem 1fr; gap: .1rem .75rem;
+    margin: 0; font-size: 13.5px;
+  }
+  .shift dt {
+    font: 10.5px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-faint); padding-top: .28rem;
+  }
+  .shift dd { margin: 0; }
+  .shift .rejected { color: var(--ink-soft); }
 
   /* the author explaining, which never blocks anything */
   .explains {
@@ -135,11 +141,13 @@
   /* the diff */
   .file { margin-bottom: 2rem; }
   .file > h2 {
-    position: sticky; top: 0; z-index: 2; background: var(--paper);
-    padding: .6rem 0; margin: 0 0 .5rem; border-bottom: 1px solid var(--rule);
+    position: sticky; top: 0; z-index: 2; background: var(--raised);
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: .5rem .85rem; margin: 0 0 .6rem; border: 1px solid var(--rule); border-radius: 3px;
     font-size: 12px; letter-spacing: .04em; text-transform: none; color: var(--ink);
     font-family: ui-monospace, monospace;
   }
+  .file > h2 .counts { font-size: 11px; }
   .hunk { border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; margin-bottom: .85rem; background: var(--paper); }
   .hunk-header {
     background: var(--raised); color: var(--ink-faint);

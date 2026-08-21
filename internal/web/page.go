@@ -14,6 +14,8 @@ import (
 type Page struct {
 	Proposal    review.Proposal
 	Since       int
+	Added       int
+	Removed     int
 	Files       []patch.File
 	Open        []review.Comment
 	Chunks      []review.Chunk
@@ -31,9 +33,13 @@ func newPage(proposal review.Proposal, files []patch.File, required []review.Che
 		blocked = err.Error()
 	}
 
+	added, removed := patch.Count(files)
+
 	return Page{
 		Proposal:    proposal,
 		Since:       since,
+		Added:       added,
+		Removed:     removed,
 		Files:       files,
 		Open:        open,
 		Chunks:      proposal.Chunks(),

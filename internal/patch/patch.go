@@ -46,6 +46,36 @@ type File struct {
 	Hunks []Hunk
 }
 
+// Added is how many lines this file gained.
+func (f File) Added() int { return f.count(Added) }
+
+// Removed is how many lines this file lost.
+func (f File) Removed() int { return f.count(Removed) }
+
+func (f File) count(kind Kind) int {
+	total := 0
+
+	for _, hunk := range f.Hunks {
+		for _, line := range hunk.Lines {
+			if line.Kind == kind {
+				total++
+			}
+		}
+	}
+
+	return total
+}
+
+// Count adds up what a whole diff did.
+func Count(files []File) (added, removed int) {
+	for _, file := range files {
+		added += file.Added()
+		removed += file.Removed()
+	}
+
+	return added, removed
+}
+
 // Parse reads the output of git diff.
 func Parse(diff string) ([]File, error) {
 	var (

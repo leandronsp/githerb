@@ -105,6 +105,12 @@ do_land_blocked() {
   [ "$(js 'document.querySelector(".land").disabled')" = "true" ]
 }
 
+# The header has to say what the diff did before anyone reads a line of it.
+do_counts() {
+  [ "$(js 'document.querySelector("#page .meta .added").innerText')" = "+2" ] || return 1
+  [ "$(js 'document.querySelector("#page .meta .removed").innerText.length')" = "2" ]
+}
+
 # The reactive proof: the browser is not touched, an agent answers from the
 # terminal, and the panel has to move on its own.
 do_live_update() {
@@ -168,6 +174,7 @@ step "the diff renders"            ""  do_open
 step "shift-click picks a range"   ""  do_select
 step "annotate in the browser"     ""  do_annotate
 step "landing is blocked"          ""  do_land_blocked
+step "the header counts the diff"  ""  do_counts
 step "the panel moves on its own"  ""  do_live_update
 step "a new revision redraws it"   ""  do_new_revision
 step "land from the browser"       ""  do_land_from_browser

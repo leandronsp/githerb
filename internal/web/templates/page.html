@@ -1,8 +1,8 @@
 <div id="page">
       <h1>{{ .Proposal.Title }}</h1>
       <p class="meta">
-        {{ .ID }} · onto {{ .Proposal.Target }} · cut from {{ short .Proposal.Base }} ·
-        revision {{ .Proposal.Head.Number }}
+        {{ .ID }} · onto {{ .Proposal.Target }} · revision {{ .Proposal.Head.Number }} ·
+        <span class="added">+{{ .Added }}</span> <span class="removed">−{{ .Removed }}</span>
       </p>
 
       {{ if .Revised }}
@@ -28,9 +28,12 @@
                   {{ if $anchor }}<a href="#{{ $anchor }}">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end }}
                   {{ if .Surface }}<span class="surface">{{ .Surface }}</span>{{ end }}
                 </p>
-                <p class="shift"><span class="was">{{ .Before }}</span> <span class="arrow">&rarr;</span> <span class="now">{{ .After }}</span></p>
-                <p class="call">{{ .Decision }}</p>
-                {{ if .Rejected }}<p class="rejected">not: {{ .Rejected }}</p>{{ end }}
+                <dl class="shift">
+                  <dt>was</dt><dd>{{ .Before }}</dd>
+                  <dt>now</dt><dd>{{ .After }}</dd>
+                  <dt>call</dt><dd>{{ .Decision }}</dd>
+                  {{ if .Rejected }}<dt>instead of</dt><dd class="rejected">{{ .Rejected }}</dd>{{ end }}
+                </dl>
               </li>
             {{ end }}
           </ol>
@@ -41,7 +44,10 @@
         <section class="diff">
           {{ range .Files }}
             <div class="file">
-            <h2>{{ .Path }}</h2>
+            <h2>
+              {{ .Path }}
+              <span class="counts"><span class="added">+{{ .Added }}</span> <span class="removed">−{{ .Removed }}</span></span>
+            </h2>
             {{ $file := .Path }}
             {{ range .Hunks }}
               <div class="hunk">
