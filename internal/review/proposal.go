@@ -2,6 +2,7 @@ package review
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -239,6 +240,41 @@ func (p Proposal) Checks() map[CheckName]Check {
 	}
 
 	return current
+}
+
+// SortedChecks are the results on the head revision, by name, so a list never
+// shuffles between two renders of the same thing.
+func (p Proposal) SortedChecks() []Check {
+	current := p.Checks()
+
+	names := make([]string, 0, len(current))
+	for name := range current {
+		names = append(names, string(name))
+	}
+
+	sort.Strings(names)
+
+	checks := make([]Check, 0, len(names))
+	for _, name := range names {
+		checks = append(checks, current[CheckName(name)])
+	}
+
+	return checks
+}
+
+// CheckSummary is the shortest true thing that can be said about the checks on
+// the head revision, for a column in a list.
+func (p Proposal) CheckSummary() string {
+	current := p.Checks()
+	if len(current) == 0 {
+		return "no checks"
+	}
+
+	if failing := len(p.Failing()); failing > 0 {
+		return fmt.Sprintf("%d failed", failing)
+	}
+
+	return "passing"
 }
 
 // Failing are the checks on the head revision that said no.

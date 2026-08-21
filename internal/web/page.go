@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/leandronsp/githerb/internal/patch"
@@ -37,7 +36,7 @@ func newPage(proposal review.Proposal, files []patch.File, required []review.Che
 		Open:        open,
 		Chunks:      proposal.Chunks(),
 		Rationale:   proposal.Rationale(),
-		Checks:      ordered(proposal.Checks(), required),
+		Checks:      proposal.SortedChecks(),
 		Blocked:     blocked,
 		Fingerprint: fingerprint(proposal, open),
 	}
@@ -66,20 +65,6 @@ func newBoard(proposals []review.Proposal) Board {
 	}
 
 	return board
-}
-
-// ordered puts the declared checks first, in the order the repository declares
-// them, so the panel does not shuffle between renders.
-func ordered(current map[review.CheckName]review.Check, required []review.CheckName) []review.Check {
-	var checks []review.Check
-
-	for _, name := range required {
-		if check, ran := current[name]; ran {
-			checks = append(checks, check)
-		}
-	}
-
-	return checks
 }
 
 // ID is the proposal's name, for building URLs in the template.
@@ -141,19 +126,10 @@ func fingerprint(proposal review.Proposal, open []review.Comment) string {
 		fmt.Fprintf(&b, "%s,", comment.ID())
 	}
 
-	// Map order in Go is deliberately random, so a fingerprint built from one
-	// would flap and push an update on every tick.
-	checks := proposal.Checks()
-
-	names := make([]string, 0, len(checks))
-	for name := range checks {
-		names = append(names, string(name))
-	}
-
-	sort.Strings(names)
-
-	for _, name := range names {
-		fmt.Fprintf(&b, "%s=%s,", name, checks[review.CheckName(name)].Status())
+	// Sorted, because map order in Go is deliberately random and a fingerprint
+	// built from one would flap and push an update on every tick.
+	for _, check := range proposal.SortedChecks() {
+		fmt.Fprintf(&b, "%s=%s,", check.Name(), check.Status())
 	}
 
 	sum := sha256.Sum256([]byte(b.String()))

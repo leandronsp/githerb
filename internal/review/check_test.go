@@ -163,3 +163,72 @@ func TestAProposalCanBeGivenUpOn(t *testing.T) {
 		t.Fatalf("abandoned twice: %v", err)
 	}
 }
+
+// The review asked why these had no tests. They had none because they lived in
+// cmd, where a decision does not belong.
+func TestTheShortestTrueThingAboutTheChecks(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		results []review.CheckStatus
+		want    string
+	}{
+		{"nothing has run", nil, "no checks"},
+		{"everything passed", []review.CheckStatus{review.CheckPassed}, "passing"},
+		{"one said no", []review.CheckStatus{review.CheckFailed}, "1 failed"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			made := proposal(t)
+
+			for i, status := range tc.results {
+				result, err := review.NewCheck(
+					review.CheckName(string(rune('a'+i))), status, rev, 1, "ci", at(t),
+				)
+				if err != nil {
+					t.Fatalf("check: %v", err)
+				}
+
+				made, err = made.WithRecord(review.CheckRecord(result))
+				if err != nil {
+					t.Fatalf("record: %v", err)
+				}
+			}
+
+			if got := made.CheckSummary(); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestChecksComeBackInAStableOrder(t *testing.T) {
+	t.Parallel()
+
+	made := proposal(t)
+
+	for _, name := range []review.CheckName{"suite", "lint", "audit"} {
+		result, err := review.NewCheck(name, review.CheckPassed, rev, 1, "ci", at(t))
+		if err != nil {
+			t.Fatalf("check: %v", err)
+		}
+
+		made, err = made.WithRecord(review.CheckRecord(result))
+		if err != nil {
+			t.Fatalf("record: %v", err)
+		}
+	}
+
+	// Twice, because a map would give a different answer each time and that is
+	// what makes a page flicker and a list unreadable.
+	for range 2 {
+		got := made.SortedChecks()
+		if len(got) != 3 || got[0].Name() != "audit" || got[1].Name() != "lint" || got[2].Name() != "suite" {
+			t.Fatalf("order is %v", got)
+		}
+	}
+}
