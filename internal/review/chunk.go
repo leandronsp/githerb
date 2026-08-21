@@ -13,7 +13,6 @@ const (
 	maxSurface  = 60
 	maxSentence = 140
 	maxDecision = 200
-	maxNoise    = 160
 )
 
 // Chunk is one reviewable decision: the thing a person can accept or reject on
