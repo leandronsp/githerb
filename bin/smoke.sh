@@ -120,7 +120,15 @@ do_fold() {
 
   click '.file > h2' false || return 1
   sleep 0.3
-  [ "$(js 'document.querySelector(".hunk").offsetParent !== null')" = "true" ]
+  [ "$(js 'document.querySelector(".hunk").offsetParent !== null')" = "true" ] || return 1
+
+  click '[data-fold-all]' false || return 1
+  sleep 0.3
+  [ "$(js 'document.querySelectorAll(".file.folded").length === document.querySelectorAll(".file").length')" = "true" ] || return 1
+
+  click '[data-unfold-all]' false || return 1
+  sleep 0.3
+  [ "$(js 'document.querySelectorAll(".file.folded").length')" = "0" ]
 }
 
 # The board says how big a proposal is before anyone opens it.

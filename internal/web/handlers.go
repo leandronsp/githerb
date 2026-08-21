@@ -114,10 +114,10 @@ func (s Server) events(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// The buttons sit in the bar, outside the panel, so a note that
-			// changes what is landable has to move them too.
+			// The checks and the buttons sit in the bar, outside the panel, so
+			// a record that changes either has to move both.
 			if fragment == "panel" {
-				if err := s.patch(w, "actions", page); err != nil {
+				if err := s.patch(w, "bar", page); err != nil {
 					return
 				}
 			}

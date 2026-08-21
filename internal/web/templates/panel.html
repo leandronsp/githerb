@@ -8,13 +8,11 @@
           <p class="head">
             {{ if $anchor }}<a href="#{{ $anchor }}">{{ .Chunk.Title }}</a>{{ else }}{{ .Chunk.Title }}{{ end }}
           </p>
-          <p class="at">
-            {{ if $anchor }}
-              <a href="#{{ $anchor }}">{{ .Chunk.File }}:{{ .Chunk.Span.Start }}</a>
-            {{ end }}
-            {{ if .Surface }}<span class="surface">{{ .Surface }}</span>{{ end }}
-          </p>
+          {{ if $anchor }}
+            <p class="at"><a href="#{{ $anchor }}">{{ .Chunk.File }}:{{ .Chunk.Span.Start }}</a></p>
+          {{ end }}
           <dl class="shift">
+            {{ if .Surface }}<dt>where</dt><dd class="surface">{{ .Surface }}</dd>{{ end }}
             <dt>was</dt><dd>{{ .Chunk.Before }}</dd>
             <dt>now</dt><dd>{{ .Chunk.After }}</dd>
             <dt>call</dt><dd>{{ .Chunk.Decision }}</dd>
@@ -23,19 +21,6 @@
         </li>
       {{ end }}
     </ol>
-  {{ end }}
-
-  {{ if .Checks }}
-    <h2>Checks</h2>
-    <ul class="checks">
-      {{ range .Checks }}
-        <li class="{{ .Status }}">
-          <span class="name">{{ .Name }}</span>
-          <span class="status">{{ .Status }}</span>
-          <span class="meta">{{ .Seconds }}s</span>
-        </li>
-      {{ end }}
-    </ul>
   {{ end }}
 
   <h2>Open notes <span class="count">{{ len .Open }}</span></h2>

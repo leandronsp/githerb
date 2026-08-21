@@ -150,6 +150,20 @@
       return;
     }
 
+    if (event.target.closest("[data-fold-all]")) {
+      for (const file of document.querySelectorAll(".file")) folded.add(file.dataset.path);
+      fold();
+
+      return;
+    }
+
+    if (event.target.closest("[data-unfold-all]")) {
+      folded.clear();
+      fold();
+
+      return;
+    }
+
     const head = event.target.closest(".file > h2");
     if (head) {
       const file = head.closest(".file");
@@ -219,7 +233,7 @@
     fold();
   });
 
-  stream.addEventListener("actions", (event) => swap("actions", event.data));
+  stream.addEventListener("bar", (event) => swap("bar", event.data));
 
   // A new revision moves the lines, so the whole page is replaced and the
   // selection goes with it. The composer is parked inside the diff by then:

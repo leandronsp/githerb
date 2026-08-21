@@ -93,9 +93,25 @@
   .bar h1 { font-size: 16px; margin: 0; }
   .bar .meta { margin: 0; }
   .bar .spacer { flex: 1; }
-  #actions { display: flex; gap: .5rem; align-items: center; }
-  #actions .land { width: auto; margin: 0; }
-  #actions .blocked { margin-right: .5rem; color: var(--ink-faint); }
+  .bar .actions { display: flex; gap: .5rem; align-items: center; }
+  .bar .land { width: auto; margin: 0; }
+  .bar .blocked { margin-right: .5rem; color: var(--ink-faint); }
+
+  /* the checks read as a strip in the bar, not as a list in a column */
+  .bar .checks { display: flex; gap: .6rem; margin: 0; }
+  .bar .checks li {
+    display: flex; gap: .4rem; align-items: baseline; padding: 0 .5rem;
+    border: 1px solid var(--rule); border-radius: 999px; background: var(--paper);
+  }
+  .bar .checks li.failed { margin: 0; background: var(--del); }
+  .bar .checks .meta { color: var(--ink-faint); }
+
+  /* fold every file at once, for a proposal too wide to scan open */
+  .fold-all {
+    display: flex; align-items: center; gap: .5rem; margin: 0 0 .85rem;
+    font: 12px ui-monospace, monospace;
+  }
+  .fold-all .spacer { flex: 1; }
   h1 { font: 500 21px/1.3 ui-sans-serif, system-ui, sans-serif; margin: 0 0 .35rem; letter-spacing: -0.01em; }
   h2 {
     font: 500 11px/1 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase;
@@ -149,9 +165,7 @@
   .chunks .head { margin: 0 0 .3rem; font-size: 14.5px; font-weight: 500; }
   .chunks .head a { text-decoration: none; }
   .chunks .head a:hover { text-decoration: underline; }
-  .chunks .surface {
-    margin-left: .6rem; font: 11px ui-monospace, monospace; color: var(--ink-faint);
-  }
+  .shift .surface { font: 12px ui-monospace, monospace; color: var(--ink-soft); }
   .chunks .at { margin: 0 0 .4rem; font: 11px ui-monospace, monospace; }
   .chunks .at a { color: var(--ink-faint); text-decoration: none; border-bottom: 1px dotted var(--edge); }
   .chunks .at a:hover { color: var(--ink); }

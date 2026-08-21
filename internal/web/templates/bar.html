@@ -1,0 +1,51 @@
+<div class="bar" id="bar">
+  <div class="what">
+    <h1>{{ .Proposal.Title }}</h1>
+    <p class="meta">
+      onto {{ .Proposal.Target }} · revision {{ .Proposal.Head.Number }} ·
+      <span class="added">+{{ .Added }}</span> <span class="removed">&minus;{{ .Removed }}</span>
+    </p>
+  </div>
+
+  {{ if .Revised }}
+    <p class="scope">
+      {{ if .Since }}
+        <a href="/p/{{ .ID }}">the whole proposal</a>
+        <span class="here">what revision {{ .Proposal.Head.Number }} changed</span>
+      {{ else }}
+        <span class="here">the whole proposal</span>
+        <a href="/p/{{ .ID }}?since={{ .Previous }}">what revision {{ .Proposal.Head.Number }} changed</a>
+      {{ end }}
+    </p>
+  {{ end }}
+
+  <span class="spacer"></span>
+
+  {{ if .Checks }}
+    <ul class="checks">
+      {{ range .Checks }}
+        <li class="{{ .Status }}">
+          <span class="name">{{ .Name }}</span>
+          <span class="status">{{ .Status }}</span>
+          <span class="meta">{{ .Seconds }}s</span>
+        </li>
+      {{ end }}
+    </ul>
+  {{ end }}
+
+  <div class="actions">
+    {{ if .Blocked }}<span class="blocked">{{ .Blocked }}</span>{{ end }}
+
+    {{ if .Open }}
+      <button class="quiet" data-handover>
+        Copy {{ len .Open }} note{{ if gt (len .Open) 1 }}s{{ end }} for the agent
+      </button>
+    {{ end }}
+
+    <button class="land" data-land {{ if not .Landable }}disabled{{ end }}>
+      {{ if .Landable }}Land onto {{ .Proposal.Target }}{{ else }}Blocked{{ end }}
+    </button>
+
+    <button class="quiet" data-abandon>Abandon</button>
+  </div>
+</div>

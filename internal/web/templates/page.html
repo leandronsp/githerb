@@ -1,29 +1,5 @@
 <div id="page">
-  <div class="bar">
-    <div class="what">
-      <h1>{{ .Proposal.Title }}</h1>
-      <p class="meta">
-        onto {{ .Proposal.Target }} · revision {{ .Proposal.Head.Number }} ·
-        <span class="added">+{{ .Added }}</span> <span class="removed">&minus;{{ .Removed }}</span>
-      </p>
-    </div>
-
-    {{ if .Revised }}
-      <p class="scope">
-        {{ if .Since }}
-          <a href="/p/{{ .ID }}">the whole proposal</a>
-          <span class="here">what revision {{ .Proposal.Head.Number }} changed</span>
-        {{ else }}
-          <span class="here">the whole proposal</span>
-          <a href="/p/{{ .ID }}?since={{ .Previous }}">what revision {{ .Proposal.Head.Number }} changed</a>
-        {{ end }}
-      </p>
-    {{ end }}
-
-    <span class="spacer"></span>
-
-    {{ template "actions.html" . }}
-  </div>
+  {{ template "bar.html" . }}
 
   <div class="columns">
     <aside class="left">
@@ -31,6 +7,13 @@
     </aside>
 
     <section class="diff">
+      <div class="fold-all">
+        <span class="muted">{{ len .Files }} file{{ if gt (len .Files) 1 }}s{{ end }}</span>
+        <span class="spacer"></span>
+        <button class="quiet" data-fold-all>fold all</button>
+        <button class="quiet" data-unfold-all>unfold all</button>
+      </div>
+
       {{ range .Files }}
         <div class="file" data-path="{{ .Path }}">
           <h2>
