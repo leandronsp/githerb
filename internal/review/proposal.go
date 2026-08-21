@@ -23,6 +23,8 @@ type Proposal struct {
 	comments  []Comment
 	resolved  map[ID]bool
 	checks    map[CheckName]Check
+	chunks    []Chunk
+	rationale []Comment
 }
 
 // NewProposal opens a proposal at its first revision. The target is whichever
@@ -55,6 +57,8 @@ func NewProposal(id ProposalID, title string, target Branch, base, head SHA) (Pr
 		comments:  nil,
 		resolved:  map[ID]bool{},
 		checks:    map[CheckName]Check{},
+		chunks:    nil,
+		rationale: nil,
 	}, nil
 }
 
@@ -124,6 +128,17 @@ func (p Proposal) WithRecord(record Record) (Proposal, error) {
 		check, _ := record.Check()
 
 		return p.withCheck(check)
+	case KindChunk:
+		chunk, _ := record.Chunk()
+
+		next := p.clone()
+		next.chunks = append(next.chunks, chunk)
+
+		return next, nil
+	case KindRationale:
+		comment, _ := record.Comment()
+
+		return p.withRationale(comment)
 	default:
 		return Proposal{}, fmt.Errorf("%q: %w", record.Kind(), ErrUnknownKind)
 	}
@@ -263,6 +278,48 @@ func (p Proposal) Abandoned() (Proposal, error) {
 	return next, nil
 }
 
+// Chunks are the decisions the author is explaining, in the order they were
+// written, which is the order they should be read in.
+func (p Proposal) Chunks() []Chunk {
+	out := make([]Chunk, len(p.chunks))
+	copy(out, p.chunks)
+
+	return out
+}
+
+// Rationale is the author explaining some lines. It never blocks, because it
+// answers a question rather than asking one.
+func (p Proposal) Rationale() []Comment {
+	head := p.Head().sha
+
+	var current []Comment
+
+	for _, comment := range p.rationale {
+		if comment.revision == head {
+			current = append(current, comment)
+		}
+	}
+
+	return current
+}
+
+func (p Proposal) withRationale(comment Comment) (Proposal, error) {
+	if !p.knows(comment.revision) {
+		return Proposal{}, fmt.Errorf("%q: %w", comment.revision, ErrUnknownRevision)
+	}
+
+	for _, already := range p.rationale {
+		if already.id == comment.id {
+			return p, nil
+		}
+	}
+
+	next := p.clone()
+	next.rationale = append(next.rationale, comment)
+
+	return next, nil
+}
+
 func (p Proposal) knows(sha SHA) bool {
 	for _, revision := range p.revisions {
 		if revision.sha == sha {
@@ -302,6 +359,12 @@ func (p Proposal) clone() Proposal {
 		checks[name] = check
 	}
 
+	chunks := make([]Chunk, len(p.chunks))
+	copy(chunks, p.chunks)
+
+	rationale := make([]Comment, len(p.rationale))
+	copy(rationale, p.rationale)
+
 	return Proposal{
 		id:        p.id,
 		title:     p.title,
@@ -312,5 +375,7 @@ func (p Proposal) clone() Proposal {
 		comments:  comments,
 		resolved:  resolved,
 		checks:    checks,
+		chunks:    chunks,
+		rationale: rationale,
 	}
 }

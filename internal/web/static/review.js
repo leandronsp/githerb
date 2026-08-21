@@ -9,6 +9,7 @@
   const send = composer.querySelector("button");
 
   let pick = null;
+  let anchor = null;
 
   const paint = () => {
     for (const line of document.querySelectorAll(".line")) {
@@ -38,6 +39,7 @@
 
   const drop = () => {
     pick = null;
+    anchor = null;
     box.value = "";
     paint();
   };
@@ -66,24 +68,55 @@
     if (ok) drop();
   };
 
+  // Selecting happens in the gutter, the way it does everywhere else that shows
+  // a diff. Dragging down it takes a range, shift extends one, and the code
+  // itself stays selectable so you can still copy a line.
+  const at = (target) => {
+    const gutter = target.closest(".no");
+    if (!gutter) return null;
+
+    const line = gutter.closest(".line");
+    const no = Number(line?.dataset.no);
+
+    return no ? { file: line.dataset.file, side: line.dataset.side, no } : null;
+  };
+
+  let dragging = false;
+
+  document.addEventListener("mousedown", (event) => {
+    const spot = at(event.target);
+    if (!spot) return;
+
+    event.preventDefault();
+
+    const extend = event.shiftKey && pick && pick.file === spot.file && pick.side === spot.side;
+
+    pick = extend
+      ? { ...pick, start: Math.min(anchor ?? pick.start, spot.no), end: Math.max(anchor ?? pick.start, spot.no) }
+      : { file: spot.file, side: spot.side, start: spot.no, end: spot.no };
+
+    if (!extend) anchor = spot.no;
+
+    dragging = true;
+    paint();
+  });
+
+  document.addEventListener("mouseover", (event) => {
+    if (!dragging || !pick) return;
+
+    const spot = at(event.target);
+    if (!spot || spot.file !== pick.file || spot.side !== pick.side) return;
+
+    pick = { ...pick, start: Math.min(anchor, spot.no), end: Math.max(anchor, spot.no) };
+    paint();
+  });
+
+  document.addEventListener("mouseup", () => {
+    dragging = false;
+  });
+
   document.addEventListener("click", (event) => {
     if (composer.contains(event.target)) return;
-
-    const line = event.target.closest(".line");
-    if (line) {
-      const no = Number(line.dataset.no);
-      if (!no) return;
-
-      const extend =
-        event.shiftKey && pick && pick.file === line.dataset.file && pick.side === line.dataset.side;
-
-      pick = extend
-        ? { ...pick, start: Math.min(pick.start, no), end: Math.max(pick.start, no) }
-        : { file: line.dataset.file, side: line.dataset.side, start: no, end: no };
-
-      paint();
-      return;
-    }
 
     const resolve = event.target.closest("[data-resolve]");
     if (resolve) post("resolve", { commentID: resolve.dataset.resolve });

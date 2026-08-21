@@ -16,10 +16,10 @@
     --herb-deep: #4c6a41;
     --herb-wash: #eaf0e5;
 
-    --add: #f1f6ec;
-    --add-edge: #a8c294;
-    --del: #fbf0ed;
-    --del-edge: #d9b0a4;
+    --add: #e6f3dd;
+    --add-edge: #7fae63;
+    --del: #fbeae5;
+    --del-edge: #d49f8c;
     --pick: #fdf6df;
     --pick-edge: #d7bb62;
     --warn: #a15c3a;
@@ -42,8 +42,8 @@
       --herb-deep: #a4c191;
       --herb-wash: #23281f;
 
-      --add: #1e2419;
-      --add-edge: #4e6640;
+      --add: #1d2a17;
+      --add-edge: #5a7f45;
       --del: #2a1e1b;
       --del-edge: #7a4f42;
       --pick: #2b2718;
@@ -74,7 +74,8 @@
     background: none; border: 0; padding: 0; height: auto;
     font: 12px ui-monospace, monospace; color: var(--ink-faint); cursor: pointer;
   }
-  .theme:hover { color: var(--herb); }
+  .theme:hover { color: var(--herb); background: none; }
+  .theme:focus-visible { outline-offset: 3px; }
 
   main { padding: 2.25rem 1.75rem 6rem; max-width: 1400px; }
   h1 { font: 500 21px/1.3 ui-sans-serif, system-ui, sans-serif; margin: 0 0 .35rem; letter-spacing: -0.01em; }
@@ -89,6 +90,41 @@
 
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 2.5rem; align-items: start; }
   @media (max-width: 1050px) { .columns { grid-template-columns: 1fr; } }
+
+  /* the decisions, which are the point of reading any of this */
+  .decisions { margin-bottom: 2.5rem; max-width: 62rem; }
+  .chunks { list-style: none; margin: 0; padding: 0; counter-reset: chunk; }
+  .chunks li {
+    counter-increment: chunk; padding: .85rem 0 .85rem 2.25rem;
+    border-bottom: 1px solid var(--rule); position: relative;
+  }
+  .chunks li:first-child { border-top: 1px solid var(--rule); }
+  .chunks li::before {
+    content: counter(chunk); position: absolute; left: 0; top: .95rem;
+    font: 11px ui-monospace, monospace; color: var(--ink-faint);
+  }
+  .chunks .head { margin: 0 0 .3rem; font-size: 14.5px; font-weight: 500; }
+  .chunks .head a { text-decoration: none; }
+  .chunks .head a:hover { text-decoration: underline; }
+  .chunks .surface {
+    margin-left: .6rem; font: 11px ui-monospace, monospace; color: var(--ink-faint);
+  }
+  .chunks .shift { margin: 0 0 .3rem; font-size: 13.5px; color: var(--ink-soft); }
+  .chunks .was { text-decoration: line-through; text-decoration-color: var(--del-edge); }
+  .chunks .now { color: var(--ink); }
+  .chunks .arrow { color: var(--herb); margin: 0 .3rem; }
+  .chunks .call { margin: 0; font-size: 13.5px; }
+  .chunks .rejected { margin: .2rem 0 0; font-size: 12.5px; color: var(--ink-faint); }
+
+  /* the author explaining, which never blocks anything */
+  .explains {
+    background: var(--herb-wash); border-left: 2px solid var(--herb);
+    padding: .5rem .85rem; font-size: 13px; line-height: 1.5;
+  }
+  .explains .who {
+    font: 10.5px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--herb); margin-right: .6rem;
+  }
 
   /* the diff */
   .file { margin-bottom: 2rem; }
@@ -106,13 +142,16 @@
   .line {
     display: grid; grid-template-columns: 3rem 3rem 1fr;
     font: 12.5px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-    cursor: text; position: relative;
+    position: relative;
   }
   .line:hover { background: var(--sunken); }
+  .line { cursor: default; }
   .line .no {
     color: var(--ink-faint); text-align: right; padding: 0 .55rem;
-    user-select: none; cursor: pointer;
+    user-select: none; cursor: pointer; background: transparent;
   }
+  .line .no:hover { background: var(--pick); color: var(--ink); }
+  .line .text { cursor: text; }
   .line .text { white-space: pre-wrap; word-break: break-word; padding: 0 .85rem 0 .35rem; }
   .line.added { background: var(--add); box-shadow: inset 2px 0 0 var(--add-edge); }
   .line.removed { background: var(--del); box-shadow: inset 2px 0 0 var(--del-edge); }

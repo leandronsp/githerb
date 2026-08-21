@@ -16,6 +16,8 @@ type Page struct {
 	Proposal    review.Proposal
 	Files       []patch.File
 	Open        []review.Comment
+	Chunks      []review.Chunk
+	Rationale   []review.Comment
 	Checks      []review.Check
 	Blocked     string
 	Fingerprint string
@@ -33,6 +35,8 @@ func newPage(proposal review.Proposal, files []patch.File, required []review.Che
 		Proposal:    proposal,
 		Files:       files,
 		Open:        open,
+		Chunks:      proposal.Chunks(),
+		Rationale:   proposal.Rationale(),
 		Checks:      ordered(proposal.Checks(), required),
 		Blocked:     blocked,
 		Fingerprint: fingerprint(proposal, open),
@@ -87,6 +91,30 @@ func (p Page) Landable() bool { return p.Blocked == "" }
 // Missing are the declared checks that have not answered for this revision.
 func (p Page) Missing(required []review.CheckName) int {
 	return len(required) - len(p.Checks)
+}
+
+// Explains are the author's notes that end on a given line, so an explanation
+// sits under the code it is about rather than in a list somewhere else.
+func (p Page) Explains(file string, side review.Side, line int) []review.Comment {
+	var found []review.Comment
+
+	for _, comment := range p.Rationale {
+		span := comment.Span()
+		if string(comment.File()) == file && span.Side() == side && span.End() == line {
+			found = append(found, comment)
+		}
+	}
+
+	return found
+}
+
+// Anchor is the id a chunk points at, so the page can take the reader there.
+func (p Page) Anchor(chunk review.Chunk) string {
+	if !chunk.Anchored() {
+		return ""
+	}
+
+	return fmt.Sprintf("L-%s-%s-%d", chunk.File(), chunk.Span().Side(), chunk.Span().Start())
 }
 
 // Noted reports whether a line already carries an open note, so the diff can

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -323,6 +324,73 @@ func abandon(args []string) error {
 	}
 
 	fmt.Printf("%s abandoned\n", proposal.ID())
+
+	return nil
+}
+
+const template = `{
+  "chunks": [
+    {
+      "title":    "one line, at most 80 characters, what this decision is",
+      "surface":  "what a person touches, or internal, at most 60",
+      "before":   "how it worked, one line, product language, no code, at most 140",
+      "after":    "how it works now, one line, at most 140",
+      "decision": "the call that was made, one line, at most 200",
+      "rejected": "the alternative not taken, optional, at most 140",
+      "file":     "path/to/file.go",
+      "side":     "new",
+      "start":    12,
+      "end":      18
+    }
+  ],
+  "rationale": [
+    {
+      "file":  "path/to/file.go",
+      "side":  "new",
+      "start": 12,
+      "end":   18,
+      "body":  "why these lines are the way they are, one or two sentences, no more"
+    }
+  ]
+}
+
+Every field is one line and every line has a ceiling. Anything longer is
+refused, which is the point: the format is what keeps a description short, not
+the good intentions of whoever wrote it.
+`
+
+func describe(args []string) error {
+	set := flag.NewFlagSet("describe", flag.ContinueOnError)
+	showTemplate := set.Bool("template", false, "print the shape a description takes")
+
+	if err := set.Parse(args); err != nil {
+		return ErrUsage
+	}
+
+	if *showTemplate {
+		fmt.Print(template)
+
+		return nil
+	}
+
+	rest := set.Args()
+	if len(rest) == 0 {
+		return ErrUsage
+	}
+
+	s, err := newSession()
+	if err != nil {
+		return err
+	}
+
+	use := app.Describe{Proposals: s.proposals, Author: s.author, Now: s.now}
+
+	written, err := use.Run(rest[0], os.Stdin)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%d written\n", written)
 
 	return nil
 }

@@ -54,6 +54,13 @@ Named types over primitives, unexported fields with a validating constructor,
 closed sets as named types with an exhaustive switch. The full rules are in
 `.claude/rules/typing.md` and `.golangci.yml` fails the build on each one.
 
+### The format refuses prolixity
+
+A description is chunks, and every field on a chunk is one line with a ceiling
+in the constructor. This is deliberate and it is the only defence that survives
+a different agent or a different harness: an instruction is advice, a
+constructor is a rule. When a field feels too small, the sentence is too long.
+
 ### The browser holds nothing but the selection
 
 The server renders HTML and pushes fragments over an event stream. The client

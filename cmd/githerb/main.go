@@ -36,6 +36,8 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb comments <proposal> [--json] [--all]
   githerb resolve <proposal> <comment>
   githerb revise <proposal> [revision]
+  githerb describe <proposal> < description.json    the decisions, from an agent
+  githerb describe --template                       the shape it takes
   githerb check <proposal>
   githerb land <proposal>
   githerb abandon <proposal>
@@ -71,6 +73,8 @@ func run(args []string) error {
 		return resolve(rest)
 	case "revise":
 		return revise(rest)
+	case "describe":
+		return describe(rest)
 	case "check":
 		return checkCmd(rest)
 	case "abandon":

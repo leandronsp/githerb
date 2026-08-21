@@ -61,14 +61,38 @@ make install  # onto the PATH
 make check    # the gate: format, vet, lint, tests
 ```
 
+## What a proposal says
+
+A proposal is not a wall of diff with a paragraph on top. It carries the
+decisions it makes, one per chunk, each with what a person touches, how it was,
+how it is, the call, and the alternative that was not taken. Clicking one takes
+you to the lines that carry it.
+
+The author also leaves rationale on the lines that need it, which renders under
+the code rather than in a list somewhere else. Rationale never blocks: it
+answers a question instead of asking one.
+
+```bash
+githerb describe --template          # the shape
+githerb describe <proposal> < description.json
+```
+
+Every field is one line and every line has a ceiling: eighty characters for a
+title, a hundred and forty for a before or an after, two hundred for a
+decision. **The format is what keeps a description short, not the good
+intentions of whoever wrote it.** An agent that rambles gets its description
+refused, and it does not matter which agent or which harness it was.
+
 ## Reviewing in a browser
 
 ```bash
 githerb review [proposal]
 ```
 
-Serves on loopback from the repository you are standing in. Click a line, shift
-click another to take a range, write what the agent should do about it. The
+Serves on loopback from the repository you are standing in. Drag down the line
+numbers to take a range, or click one and shift click another, then write what
+the agent should do about those lines. Selecting happens in the gutter so the
+code itself stays selectable. The
 panel keeps itself current over an event stream, so a note the agent answers in
 your terminal disappears from the page without a reload and without losing the
 lines you had selected.

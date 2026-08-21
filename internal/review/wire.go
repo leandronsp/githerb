@@ -20,16 +20,23 @@ const idLength = 12
 // order is part of the contract: identical records must serialise to identical
 // bytes so git's cat_sort_uniq merge deduplicates them.
 type line struct {
-	Version int         `json:"v"`
-	Kind    Kind        `json:"kind"`
-	ID      ID          `json:"id"`
-	Target  ID          `json:"target,omitempty"`
-	Rev     SHA         `json:"rev,omitempty"`
-	File    File        `json:"file,omitempty"`
-	Side    Side        `json:"side,omitempty"`
-	Start   int         `json:"start,omitempty"`
-	End     int         `json:"end,omitempty"`
-	Body    string      `json:"body,omitempty"`
+	Version  int    `json:"v"`
+	Kind     Kind   `json:"kind"`
+	ID       ID     `json:"id"`
+	Target   ID     `json:"target,omitempty"`
+	Rev      SHA    `json:"rev,omitempty"`
+	File     File   `json:"file,omitempty"`
+	Side     Side   `json:"side,omitempty"`
+	Start    int    `json:"start,omitempty"`
+	End      int    `json:"end,omitempty"`
+	Body     string `json:"body,omitempty"`
+	Title    string `json:"title,omitempty"`
+	Surface  string `json:"surface,omitempty"`
+	Before   string `json:"before,omitempty"`
+	After    string `json:"after,omitempty"`
+	Decided  string `json:"decision,omitempty"`
+	Rejected string `json:"rejected,omitempty"`
+
 	Name    CheckName   `json:"name,omitempty"`
 	Status  CheckStatus `json:"status,omitempty"`
 	Seconds int         `json:"seconds,omitempty"`
@@ -46,63 +53,110 @@ func (r Resolution) MarshalLine() ([]byte, error) { return marshal(r.line()) }
 // MarshalLine renders the check as the single line it is stored as.
 func (c Check) MarshalLine() ([]byte, error) { return marshal(c.line()) }
 
+// MarshalLine renders the decision as the single line it is stored as.
+func (c Chunk) MarshalLine() ([]byte, error) { return marshal(c.line()) }
+
+func (c Chunk) line() line {
+	return line{
+		Version:  version,
+		Kind:     KindChunk,
+		ID:       "",
+		Target:   "",
+		Rev:      "",
+		File:     c.file,
+		Side:     c.span.side,
+		Start:    c.span.start,
+		End:      c.span.end,
+		Body:     "",
+		Title:    c.title,
+		Surface:  c.surface,
+		Before:   c.before,
+		After:    c.after,
+		Decided:  c.decision,
+		Rejected: c.rejected,
+		Name:     "",
+		Status:   "",
+		Seconds:  0,
+		Author:   "",
+		At:       "",
+	}
+}
+
 func (c Comment) line() line {
 	return line{
-		Version: version,
-		Kind:    KindComment,
-		ID:      c.id,
-		Target:  "",
-		Rev:     c.revision,
-		File:    c.file,
-		Side:    c.span.side,
-		Start:   c.span.start,
-		End:     c.span.end,
-		Body:    c.body,
-		Name:    "",
-		Status:  "",
-		Seconds: 0,
-		Author:  c.author,
-		At:      c.at.Format(time.RFC3339),
+		Version:  version,
+		Kind:     KindComment,
+		ID:       c.id,
+		Target:   "",
+		Rev:      c.revision,
+		File:     c.file,
+		Side:     c.span.side,
+		Start:    c.span.start,
+		End:      c.span.end,
+		Body:     c.body,
+		Title:    "",
+		Surface:  "",
+		Before:   "",
+		After:    "",
+		Decided:  "",
+		Rejected: "",
+		Name:     "",
+		Status:   "",
+		Seconds:  0,
+		Author:   c.author,
+		At:       c.at.Format(time.RFC3339),
 	}
 }
 
 func (c Check) line() line {
 	return line{
-		Version: version,
-		Kind:    KindCheck,
-		ID:      "",
-		Target:  "",
-		Rev:     c.revision,
-		File:    "",
-		Side:    "",
-		Start:   0,
-		End:     0,
-		Body:    "",
-		Name:    c.name,
-		Status:  c.status,
-		Seconds: c.seconds,
-		Author:  c.author,
-		At:      c.at.Format(time.RFC3339),
+		Version:  version,
+		Kind:     KindCheck,
+		ID:       "",
+		Target:   "",
+		Rev:      c.revision,
+		File:     "",
+		Side:     "",
+		Start:    0,
+		End:      0,
+		Body:     "",
+		Title:    "",
+		Surface:  "",
+		Before:   "",
+		After:    "",
+		Decided:  "",
+		Rejected: "",
+		Name:     c.name,
+		Status:   c.status,
+		Seconds:  c.seconds,
+		Author:   c.author,
+		At:       c.at.Format(time.RFC3339),
 	}
 }
 
 func (r Resolution) line() line {
 	return line{
-		Version: version,
-		Kind:    KindResolve,
-		ID:      r.id,
-		Target:  r.target,
-		Rev:     "",
-		File:    "",
-		Side:    "",
-		Start:   0,
-		End:     0,
-		Body:    "",
-		Name:    "",
-		Status:  "",
-		Seconds: 0,
-		Author:  r.author,
-		At:      r.at.Format(time.RFC3339),
+		Version:  version,
+		Kind:     KindResolve,
+		ID:       r.id,
+		Target:   r.target,
+		Rev:      "",
+		File:     "",
+		Side:     "",
+		Start:    0,
+		End:      0,
+		Body:     "",
+		Title:    "",
+		Surface:  "",
+		Before:   "",
+		After:    "",
+		Decided:  "",
+		Rejected: "",
+		Name:     "",
+		Status:   "",
+		Seconds:  0,
+		Author:   r.author,
+		At:       r.at.Format(time.RFC3339),
 	}
 }
 
@@ -164,9 +218,15 @@ func ParseLine(raw []byte) (Record, error) {
 		return Record{}, fmt.Errorf("version %d: %w", l.Version, ErrVersion)
 	}
 
-	moment, err := time.Parse(time.RFC3339, l.At)
-	if err != nil {
-		return Record{}, fmt.Errorf("timestamp %q: %w", l.At, ErrMalformed)
+	moment := time.Time{}
+
+	if l.Kind != KindChunk {
+		parsed, err := time.Parse(time.RFC3339, l.At)
+		if err != nil {
+			return Record{}, fmt.Errorf("timestamp %q: %w", l.At, ErrMalformed)
+		}
+
+		moment = parsed
 	}
 
 	switch l.Kind {
@@ -176,6 +236,10 @@ func ParseLine(raw []byte) (Record, error) {
 		return parseResolution(l, moment)
 	case KindCheck:
 		return parseCheck(l, moment)
+	case KindChunk:
+		return parseChunk(l)
+	case KindRationale:
+		return parseRationale(l, moment)
 	default:
 		return Record{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}
@@ -193,6 +257,40 @@ func parseComment(l line, at time.Time) (Record, error) {
 	}
 
 	return CommentRecord(comment), nil
+}
+
+func parseChunk(l line) (Record, error) {
+	chunk, err := NewChunk(l.Title, l.Surface, l.Before, l.After, l.Decided, l.Rejected)
+	if err != nil {
+		return Record{}, err
+	}
+
+	if l.File == "" {
+		return ChunkRecord(chunk), nil
+	}
+
+	span, err := NewSpan(l.Side, l.Start, l.End)
+	if err != nil {
+		return Record{}, err
+	}
+
+	anchored, err := chunk.At(l.File, span)
+	if err != nil {
+		return Record{}, err
+	}
+
+	return ChunkRecord(anchored), nil
+}
+
+func parseRationale(l line, at time.Time) (Record, error) {
+	record, err := parseComment(l, at)
+	if err != nil {
+		return Record{}, err
+	}
+
+	comment, _ := record.Comment()
+
+	return RationaleRecord(comment), nil
 }
 
 func parseCheck(l line, at time.Time) (Record, error) {

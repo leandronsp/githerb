@@ -31,4 +31,8 @@ var (
 	ErrUnknownStatus   = errors.New("a check either passed or failed")
 	ErrCheckFailed     = errors.New("a check failed on the head revision")
 	ErrCheckMissing    = errors.New("a required check has not run on the head revision")
+	ErrNotOneLine      = errors.New("this is one line, and one line only")
+	ErrTooLong         = errors.New("longer than the ceiling, say it shorter")
+	ErrNoBeforeAfter   = errors.New("a chunk says how it was and how it is")
+	ErrNoDecision      = errors.New("a chunk names the call that was made")
 )

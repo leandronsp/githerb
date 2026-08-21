@@ -38,6 +38,10 @@ jsq() { printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.std
 js()  { agent-browser eval "$1" 2>/dev/null | tr -d '"'; }
 click() { agent-browser eval "(() => { const e = document.querySelector($(jsq "$1")); if (!e) return 'missing'; e.dispatchEvent(new MouseEvent('click', {bubbles:true, shiftKey:${2:-false}})); return 'ok'; })()" 2>/dev/null | grep -q ok; }
 
+# Picking lines happens in the gutter on mousedown, the way it does in every
+# other diff, so the smoke has to press there rather than click the code.
+gutter() { agent-browser eval "(() => { const e = document.querySelector($(jsq "$1") + ' .no.new'); if (!e) return 'missing'; e.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, shiftKey:${2:-false}})); e.dispatchEvent(new MouseEvent('mouseup', {bubbles:true})); return 'ok'; })()" 2>/dev/null | grep -q ok; }
+
 ## the repository
 
 do_repo() {
@@ -78,8 +82,8 @@ do_open() {
 }
 
 do_select() {
-  click '.line[data-file="a.txt"][data-line="new:2"]' false || return 1
-  click '.line[data-file="a.txt"][data-line="new:3"]' true || return 1
+  gutter '.line[data-file="a.txt"][data-line="new:2"]' false || return 1
+  gutter '.line[data-file="a.txt"][data-line="new:3"]' true || return 1
   sleep 0.4
   [ "$(js 'document.querySelectorAll(".line.picked").length')" = "2" ]
 }

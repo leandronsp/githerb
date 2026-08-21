@@ -24,6 +24,26 @@
         revision {{ .Proposal.Head.Number }}
       </p>
 
+      {{ if .Chunks }}
+        <section class="decisions">
+          <h2>What this decides</h2>
+          <ol class="chunks">
+            {{ range .Chunks }}
+              {{ $anchor := $.Anchor . }}
+              <li>
+                <p class="head">
+                  {{ if $anchor }}<a href="#{{ $anchor }}">{{ .Title }}</a>{{ else }}{{ .Title }}{{ end }}
+                  {{ if .Surface }}<span class="surface">{{ .Surface }}</span>{{ end }}
+                </p>
+                <p class="shift"><span class="was">{{ .Before }}</span> <span class="arrow">&rarr;</span> <span class="now">{{ .After }}</span></p>
+                <p class="call">{{ .Decision }}</p>
+                {{ if .Rejected }}<p class="rejected">not: {{ .Rejected }}</p>{{ end }}
+              </li>
+            {{ end }}
+          </ol>
+        </section>
+      {{ end }}
+
       <div class="columns">
         <section class="diff">
           {{ range .Files }}
@@ -42,11 +62,17 @@
                     data-side="{{ $side }}"
                     data-no="{{ $no }}"
                     data-line="{{ $side }}:{{ $no }}"
+                    id="L-{{ $file }}-{{ $side }}-{{ $no }}"
                   >
                     <span class="no old">{{ if .Old }}{{ .Old }}{{ end }}</span>
                     <span class="no new">{{ if .New }}{{ .New }}{{ end }}</span>
                     <span class="text">{{ .Text }}</span>
                   </div>
+                  {{ range $.Explains $file $side $no }}
+                    <div class="explains">
+                      <span class="who">{{ .Author }}</span>{{ .Body }}
+                    </div>
+                  {{ end }}
                 {{ end }}
               </div>
             {{ end }}
