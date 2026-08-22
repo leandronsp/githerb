@@ -256,7 +256,9 @@
       return;
     }
 
-    if (hit("data-theme")) return theme();
+    // The root element carries data-theme too once a theme is fixed, so the
+    // hit test names the button: a click anywhere else must not toggle it.
+    if (target.closest("button[data-theme]")) return theme();
 
     const fold = target.closest(".fold");
     if (fold) {

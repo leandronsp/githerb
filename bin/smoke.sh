@@ -158,6 +158,18 @@ do_fold() {
   [ "$(js 'document.querySelector("section.file table").offsetParent !== null')" = "true" ]
 }
 
+# The theme is the one thing the browser keeps besides the selection, and only
+# its own button may change it: a click on a file in the rail jumps to the file.
+do_theme_stays() {
+  agent-browser eval "document.documentElement.dataset.theme = 'light'" >/dev/null 2>&1
+  click '#rail .files a' false || return 1
+  sleep 0.3
+  [ "$(js 'document.documentElement.dataset.theme')" = "light" ] || return 1
+  click '#rail .files a' false || return 1
+  sleep 0.3
+  [ "$(js 'document.documentElement.dataset.theme')" = "light" ]
+}
+
 # The board says how big a proposal is before anyone opens it.
 do_board() {
   curl -sf "$WEB/" | tr -d '\n' | grep -q "+2"
@@ -274,6 +286,7 @@ step "a note is a thread"          ""  do_thread
 step "landing is blocked"          ""  do_land_blocked
 step "the bar counts the diff"     ""  do_counts
 step "a file folds away"           ""  do_fold
+step "the theme stays put"          ""  do_theme_stays
 step "the board sizes each one"    ""  do_board
 step "hand the review over"        ""  do_handover
 step "the rail moves on its own"   ""  do_live_update
