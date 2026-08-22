@@ -51,7 +51,9 @@ func (p Proposal) decisions() string {
 }
 
 func (p Proposal) brief(commands bool, closing string) string {
-	open := p.Open()
+	// The conversation, not the blocking set: a question that fell off the head
+	// when somebody committed is still a question nobody answered.
+	open := p.Conversation()
 	if len(open) == 0 {
 		return ""
 	}
@@ -71,6 +73,12 @@ func (p Proposal) brief(commands bool, closing string) string {
 		}
 
 		fmt.Fprintf(&b, " %s  [note %s]\n  %s\n", span.Side(), comment.ID(), comment.Body())
+
+		// What was already said under it, so the answer continues the thread
+		// instead of starting it again.
+		for _, answer := range p.Answers(comment.ID()) {
+			fmt.Fprintf(&b, "    %s: %s\n", answer.Author(), answer.Body())
+		}
 
 		if commands {
 			fmt.Fprintf(&b, "  githerb resolve %s %s\n", p.id, comment.ID())
