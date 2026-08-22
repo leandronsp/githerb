@@ -24,6 +24,11 @@ type Page struct {
 	Checks      []review.Check
 	Blocked     string
 	Fingerprint string
+
+	// Talk changes when anything in the conversation does. The threads live in
+	// the diff, so a note or an answer has to redraw the page and not only the
+	// panel beside it.
+	Talk string
 }
 
 func newPage(proposal review.Proposal, files []patch.File, required []review.CheckName, since int) Page {
@@ -48,6 +53,7 @@ func newPage(proposal review.Proposal, files []patch.File, required []review.Che
 		Checks:      proposal.SortedChecks(),
 		Blocked:     blocked,
 		Fingerprint: fingerprint(proposal, open),
+		Talk:        conversation(proposal),
 	}
 }
 
@@ -115,6 +121,11 @@ func (p Page) Missing(required []review.CheckName) int {
 type Thread struct {
 	Note    review.Comment
 	Answers []review.Reply
+
+	// Stale marks a thread left against an earlier revision. It still reads,
+	// because a conversation does not stop being one when the code moves, but
+	// it no longer blocks anything.
+	Stale bool
 }
 
 // Threads are the open notes anchored on a line, each with its answers, so the
@@ -122,17 +133,27 @@ type Thread struct {
 func (p Page) Threads(file string, side review.Side, line int) []Thread {
 	var found []Thread
 
-	for _, note := range p.Open {
+	head := p.Proposal.Head().SHA()
+
+	for _, note := range p.Proposal.Conversation() {
 		span := note.Span()
 		if string(note.File()) != file || span.Side() != side || span.End() != line {
 			continue
 		}
 
-		found = append(found, Thread{Note: note, Answers: p.Proposal.Answers(note.ID())})
+		found = append(found, Thread{
+			Note:    note,
+			Answers: p.Proposal.Answers(note.ID()),
+			Stale:   note.Revision() != head,
+		})
 	}
 
 	return found
 }
+
+// Talking is every note nobody resolved, newest revision first, which is what
+// the panel lists. Open is what blocks; this is what is being discussed.
+func (p Page) Talking() []review.Comment { return p.Proposal.Conversation() }
 
 // Answers are the replies under a note, for the panel.
 func (p Page) Answers(note review.Comment) []review.Reply {
@@ -321,6 +342,22 @@ func (p Page) Noted(file string, side review.Side, line int) bool {
 	return false
 }
 
+// conversation is what the stream compares to decide whether anything was
+// said, which is a redraw of the code and not only of the list beside it.
+func conversation(proposal review.Proposal) string {
+	var b strings.Builder
+
+	for _, note := range proposal.Conversation() {
+		fmt.Fprintf(&b, "%s,", note.ID())
+
+		for _, answer := range proposal.Answers(note.ID()) {
+			fmt.Fprintf(&b, "%s.", answer.ID())
+		}
+	}
+
+	return b.String()
+}
+
 // fingerprint is what the stream compares to decide whether the page moved.
 // Git has nothing to subscribe to, so the answer has to be derived.
 func fingerprint(proposal review.Proposal, open []review.Comment) string {
@@ -328,7 +365,7 @@ func fingerprint(proposal review.Proposal, open []review.Comment) string {
 
 	fmt.Fprintf(&b, "%s|%s|%d|", proposal.State(), proposal.Head().SHA(), proposal.Head().Number())
 
-	for _, comment := range open {
+	for _, comment := range proposal.Conversation() {
 		fmt.Fprintf(&b, "%s,", comment.ID())
 
 		// The answers, so a reply arriving redraws the thread it belongs to.

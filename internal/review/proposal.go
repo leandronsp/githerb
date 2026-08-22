@@ -186,6 +186,21 @@ func (p Proposal) Open() []Comment {
 	return open
 }
 
+// Conversation is every note nobody has resolved, from any revision. Open is
+// the subset that blocks; this is the subset you read, because an answer
+// written against the revision before this one is still the answer.
+func (p Proposal) Conversation() []Comment {
+	var talking []Comment
+
+	for _, comment := range p.comments {
+		if !p.resolved[comment.id] {
+			talking = append(talking, comment)
+		}
+	}
+
+	return talking
+}
+
 // Landable reports why the proposal cannot land, and nil when it can. The
 // required checks are the ones the repository declares; a proposal that
 // declares none is gated only by the review.
@@ -414,13 +429,24 @@ func (p Proposal) Dispatched() bool {
 		return false
 	}
 
+	var since []Work
+
 	for _, line := range p.work {
 		if line.revision == head && !line.at.Before(asked) {
-			return false
+			since = append(since, line)
 		}
 	}
 
-	return true
+	if len(since) == 0 {
+		return true
+	}
+
+	sort.SliceStable(since, func(i, j int) bool { return since[i].at.Before(since[j].at) })
+
+	// A claim that was handed back leaves the ask standing: a runner died, and
+	// nobody has actually answered yet. Anything else answered it, including a
+	// failure, which waits for a person to ask again.
+	return since[len(since)-1].phase == PhaseCleared
 }
 
 // Activity is what the work log adds up to: idle, working, or stopped.

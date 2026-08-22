@@ -42,10 +42,6 @@ func (r Runner) Run(ctx context.Context) error {
 	ticker := time.NewTicker(r.every())
 	defer ticker.Stop()
 
-	if _, err := r.Recover(); err != nil {
-		r.say("%v", err)
-	}
-
 	for {
 		if _, err := r.Once(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			r.say("%v", err)
@@ -91,6 +87,13 @@ func (r Runner) Recover() (int, error) {
 
 // Once takes one pass: it works out what is pending and does the first of it.
 func (r Runner) Once(ctx context.Context) ([]Job, error) {
+	// Nothing of ours is in flight when a pass begins, because a pass runs one
+	// job at a time and finishes it. So anything still claimed was left by a
+	// process that is gone, and holding the lock is what makes that certain.
+	if _, err := r.Recover(); err != nil {
+		return nil, err
+	}
+
 	proposals, err := r.Proposals.List()
 	if err != nil {
 		return nil, err

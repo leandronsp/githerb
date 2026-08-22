@@ -43,9 +43,12 @@
                   <span class="text">{{ .Text }}</span>
                 </div>
                 {{ range $.Threads $file $side $no }}
-                  <div class="thread" data-note="{{ .Note.ID }}">
+                  <div class="thread{{ if .Stale }} stale{{ end }}" data-note="{{ .Note.ID }}">
                     <div class="turn">
-                      <p class="who">{{ .Note.Author }}<span class="when">{{ hhmm .Note.At }}</span></p>
+                      <p class="who">
+                        {{ .Note.Author }}<span class="when">{{ hhmm .Note.At }}</span>
+                        {{ if .Stale }}<span class="when">on an earlier revision</span>{{ end }}
+                      </p>
                       <p class="body">{{ .Note.Body }}</p>
                     </div>
                     {{ range .Answers }}

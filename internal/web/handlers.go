@@ -90,7 +90,7 @@ func (s Server) events(w http.ResponseWriter, r *http.Request) {
 	id := review.ProposalID(r.PathValue("id"))
 	since, _ := strconv.Atoi(r.URL.Query().Get("since"))
 
-	var mark, head string
+	var mark, head, talk string
 
 	ticker := time.NewTicker(400 * time.Millisecond)
 	defer ticker.Stop()
@@ -102,13 +102,16 @@ func (s Server) events(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if page.Fingerprint != mark {
+			// The threads are in the diff, so anything said redraws the page.
+			// A check or an agent picking something up only moves the panel.
 			fragment := "panel"
-			if string(page.Proposal.Head().SHA()) != head {
+			if string(page.Proposal.Head().SHA()) != head || page.Talk != talk {
 				fragment = "page"
 			}
 
 			mark = page.Fingerprint
 			head = string(page.Proposal.Head().SHA())
+			talk = page.Talk
 
 			if err := s.patch(w, fragment, page); err != nil {
 				return

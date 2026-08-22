@@ -101,6 +101,28 @@ do_annotate() {
   js 'document.querySelector("#panel").innerText' | grep -q "these two want a name"
 }
 
+# A note is a thread: it renders where the code is, and anyone can answer it.
+do_thread() {
+  [ "$(js 'document.querySelectorAll(".thread").length')" = "1" ] || return 1
+  js 'document.querySelector(".thread").innerText' | grep -q "these two want a name" || return 1
+
+  click '.thread [data-reply]' false || return 1
+  sleep 0.4
+
+  agent-browser eval "(() => {
+    const t = document.querySelector('textarea');
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t, 'naming both of them costs nothing');
+    t.dispatchEvent(new Event('input', {bubbles:true}));
+    return 'ok';
+  })()" >/dev/null 2>&1 || return 1
+
+  click '.composer button' false || return 1
+  sleep 1.5
+
+  js 'document.querySelector(".thread .answer") ? document.querySelector(".thread .answer").innerText : ""' \
+    | grep -q "naming both of them costs nothing"
+}
+
 do_land_blocked() {
   [ "$(js 'document.querySelector(".land").disabled')" = "true" ]
 }
@@ -285,6 +307,7 @@ step "the review surface answers"  ""  do_serve
 step "the diff renders"            ""  do_open
 step "shift-click picks a range"   ""  do_select
 step "annotate in the browser"     ""  do_annotate
+step "a note is a thread"          ""  do_thread
 step "landing is blocked"          ""  do_land_blocked
 step "the header counts the diff"  ""  do_counts
 step "a file folds away"           ""  do_fold

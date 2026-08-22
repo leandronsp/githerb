@@ -150,3 +150,32 @@ func TestAClaimNobodyIsHoldingIsNotWork(t *testing.T) {
 		t.Fatalf("activity is %+v, want idle so the work can be picked up again", activity)
 	}
 }
+
+func TestAClearedClaimDoesNotAnswerAHandover(t *testing.T) {
+	t.Parallel()
+
+	asked, err := review.NewDispatch(rev, "leandro", at(t))
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+
+	made, err := proposal(t).WithRecord(review.DispatchRecord(asked))
+	if err != nil {
+		t.Fatalf("dispatch record: %v", err)
+	}
+
+	// A runner that died and one that cleaned up after it must not add up to
+	// a handover that was answered.
+	for _, phase := range []review.Phase{review.PhaseStarted, review.PhaseCleared} {
+		next, err := made.WithRecord(review.WorkRecord(work(t, review.TaskCheck, phase, "", time.Minute)))
+		if err != nil {
+			t.Fatalf("work: %v", err)
+		}
+
+		made = next
+	}
+
+	if !made.Dispatched() {
+		t.Fatalf("the handover was swallowed by a claim nobody was holding")
+	}
+}

@@ -298,10 +298,26 @@
     const page = document.getElementById("page");
     if (!page) return;
 
+    // The diff column is the scroller, so replacing it would send the reader
+    // back to the top of a page they were halfway down.
+    const where = document.querySelector(".diff");
+    const at = where ? where.scrollTop : 0;
+
     document.body.append(composer);
     page.outerHTML = event.data;
+
+    const now = document.querySelector(".diff");
+    if (now) now.scrollTop = at;
+
     fold();
-    drop();
+
+    // The selection is gone with the lines it pointed at, but whatever was
+    // half typed is not: losing a sentence to somebody else's commit is the
+    // kind of thing that stops people from typing at all.
+    pick = null;
+    anchor = null;
+    answering = null;
+    paint();
   });
 
   paint();

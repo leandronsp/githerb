@@ -36,12 +36,12 @@
     </ul>
   {{ end }}
 
-  <h2>Open notes <span class="count">{{ len .Open }}</span></h2>
+  <h2>Notes <span class="count">{{ len .Open }}</span></h2>
 
-  {{ if not .Open }}<p class="muted">Nothing open on this revision.</p>{{ end }}
+  {{ if not .Talking }}<p class="muted">Nothing open on this revision.</p>{{ end }}
 
   <ul class="notes">
-    {{ range .Open }}
+    {{ range .Talking }}
       <li>
         <p class="meta">
           <a href="#L-{{ .File }}-{{ .Span.Side }}-{{ .Span.Start }}">{{ .File }}:{{ .Span.Start }}{{ if gt .Span.Lines 1 }}-{{ .Span.End }}{{ end }}</a>
