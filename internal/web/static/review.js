@@ -223,6 +223,11 @@
   // page without a reload and without taking your selection with it.
   const stream = new EventSource(`/p/${proposal}/events${location.search}`);
 
+  // A stream left open across a navigation keeps its connection, and a browser
+  // only gives a host six of them, so the fifth click on the revision strip
+  // would starve the page it was asking for. Hang up before leaving.
+  window.addEventListener("pagehide", () => stream.close());
+
   const swap = (id, html) => {
     const node = document.getElementById(id);
     if (node) node.outerHTML = html;

@@ -189,6 +189,23 @@ do_new_revision() {
   return 1
 }
 
+# Every navigation opens an event stream, and a browser gives one host six
+# connections, so a stream left open across a click starves the page the next
+# click asks for. The symptom is a tab that hangs while the server is idle, so
+# this measures from inside the page rather than with curl.
+do_streams() {
+  for _ in $(seq 1 8); do
+    agent-browser eval "(() => { const l = [...document.querySelectorAll('.scope a')]; if (!l.length) return 'none'; l[0].click(); return 'ok'; })()" >/dev/null 2>&1
+    sleep 0.6
+  done
+
+  # What the browser is starved of is connections, so count them rather than
+  # time the symptom: the page and one stream, never a stream per click.
+  local held
+  held=$(lsof -nP -p "$SERVER" 2>/dev/null | grep -c ESTABLISHED)
+  [ "$held" -le 3 ]
+}
+
 do_land_from_browser() {
   [ "$(js 'document.querySelector(".land").disabled')" = "false" ] || return 1
   click '.land' false || return 1
@@ -216,6 +233,7 @@ step "the board sizes each one"    ""  do_board
 step "hand the review over"        ""  do_handover
 step "the panel moves on its own"  ""  do_live_update
 step "a new revision redraws it"   ""  do_new_revision
+step "clicking around stays fast"  ""  do_streams
 step "land from the browser"       ""  do_land_from_browser
 
 printf '%s\n' "${REPORT[@]}"
