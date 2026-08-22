@@ -83,6 +83,10 @@ checkout you have open.
 Rust 1.98 or newer to build; git 2.42 or newer to run (`git notes append
 --no-separator`).
 
+## Roadmap
+
+Where it goes next, and why, is in [ROADMAP.md](ROADMAP.md).
+
 ## Development
 
 ```bash
