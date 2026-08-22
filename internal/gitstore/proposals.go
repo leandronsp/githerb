@@ -437,6 +437,12 @@ func marshalRecord(record review.Record) (string, error) {
 		line, err := work.MarshalLine()
 
 		return string(line), wrap(err)
+	case review.KindDispatch:
+		dispatch, _ := record.Dispatch()
+
+		line, err := dispatch.MarshalLine()
+
+		return string(line), wrap(err)
 	default:
 		return "", fmt.Errorf("%q: %w", record.Kind(), review.ErrUnknownKind)
 	}

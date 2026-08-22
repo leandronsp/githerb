@@ -178,3 +178,35 @@ func activityOf(records []Work) Activity {
 
 	return activity
 }
+
+// Dispatch is a person handing the open notes to an agent. It carries nothing
+// but the revision it was asked about, because everything the agent needs to
+// read is already in the log.
+type Dispatch struct {
+	revision SHA
+	author   string
+	at       time.Time
+}
+
+// NewDispatch is the only way to build one.
+func NewDispatch(revision SHA, author string, at time.Time) (Dispatch, error) {
+	author = strings.TrimSpace(author)
+
+	switch {
+	case !shaPattern.MatchString(string(revision)):
+		return Dispatch{}, fmt.Errorf("revision %q: %w", revision, ErrNoRevision)
+	case author == "":
+		return Dispatch{}, ErrNoAuthor
+	}
+
+	return Dispatch{revision: revision, author: author, at: at.UTC().Truncate(time.Second)}, nil
+}
+
+// Revision is the head it was asked about.
+func (d Dispatch) Revision() SHA { return d.revision }
+
+// Author is who asked.
+func (d Dispatch) Author() string { return d.author }
+
+// At is when, to the second, in UTC.
+func (d Dispatch) At() time.Time { return d.at }

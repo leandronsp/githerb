@@ -86,6 +86,37 @@ func (w Work) line() line {
 	}
 }
 
+// MarshalLine renders the request as the single line it is stored as.
+func (d Dispatch) MarshalLine() ([]byte, error) { return marshal(d.line()) }
+
+func (d Dispatch) line() line {
+	return line{
+		Version:  version,
+		Kind:     KindDispatch,
+		ID:       "",
+		Target:   "",
+		Rev:      d.revision,
+		File:     "",
+		Side:     "",
+		Start:    0,
+		End:      0,
+		Body:     "",
+		Title:    "",
+		Surface:  "",
+		Before:   "",
+		After:    "",
+		Decided:  "",
+		Rejected: "",
+		Task:     "",
+		Phase:    "",
+		Name:     "",
+		Status:   "",
+		Seconds:  0,
+		Author:   d.author,
+		At:       d.at.Format(time.RFC3339),
+	}
+}
+
 // MarshalLine renders the decision as the single line it is stored as.
 func (c Chunk) MarshalLine() ([]byte, error) { return marshal(c.line()) }
 
@@ -283,6 +314,8 @@ func ParseLine(raw []byte) (Record, error) {
 		return parseRationale(l, moment)
 	case KindWork:
 		return parseWork(l, moment)
+	case KindDispatch:
+		return parseDispatch(l, moment)
 	default:
 		return Record{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}
@@ -361,4 +394,13 @@ func parseWork(l line, at time.Time) (Record, error) {
 	}
 
 	return WorkRecord(work), nil
+}
+
+func parseDispatch(l line, at time.Time) (Record, error) {
+	dispatch, err := NewDispatch(l.Rev, l.Author, at)
+	if err != nil {
+		return Record{}, err
+	}
+
+	return DispatchRecord(dispatch), nil
 }

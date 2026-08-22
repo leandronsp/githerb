@@ -44,7 +44,7 @@
 
     {{ if .Open }}
       <button class="quiet" data-handover>
-        Copy {{ len .Open }} note{{ if gt (len .Open) 1 }}s{{ end }} for the agent
+        Send {{ len .Open }} note{{ if gt (len .Open) 1 }}s{{ end }} to the agent
       </button>
     {{ end }}
 

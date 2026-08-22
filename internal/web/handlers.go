@@ -192,6 +192,20 @@ func (s Server) resolve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// dispatch hands the open notes to whatever agent is watching, which is the
+// button doing what copying the brief to the clipboard only pretended to do.
+func (s Server) dispatch(w http.ResponseWriter, r *http.Request) {
+	use := app.Dispatch{Proposals: s.Proposals, Author: s.Author, Now: s.Now}
+
+	if _, err := use.Run(r.PathValue("id")); err != nil {
+		s.fail(w, err)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s Server) land(w http.ResponseWriter, r *http.Request) {
 	use := app.Land{
 		Proposals: s.Proposals, Git: s.Git,

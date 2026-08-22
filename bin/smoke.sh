@@ -143,8 +143,13 @@ do_handover() {
   curl -sf "$WEB/p/$ID/handover" | grep -q "these two want a name" || return 1
 
   click '[data-handover]' false || return 1
-  sleep 1
-  [ "$(js 'document.querySelector("[data-handover]").dataset.handedOver')" = "1" ]
+  sleep 1.5
+  js 'document.querySelector(".said").innerText' | grep -q "Handed over" || return 1
+
+  # The click also has to leave the ask in the log, which is what an agent
+  # watching the repository acts on.
+  cd "$WORK" || return 1
+  "$BIN" show "$ID" | grep -q "waiting for an agent"
 }
 
 # The reactive proof: the browser is not touched, an agent answers from the

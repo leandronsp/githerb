@@ -73,6 +73,7 @@ func (s Server) routes() http.Handler {
 	mux.HandleFunc("GET /p/{id}/handover", s.handover)
 	mux.HandleFunc("POST /p/{id}/comment", s.comment)
 	mux.HandleFunc("POST /p/{id}/resolve", s.resolve)
+	mux.HandleFunc("POST /p/{id}/dispatch", s.dispatch)
 	mux.HandleFunc("POST /p/{id}/land", s.land)
 	mux.HandleFunc("POST /p/{id}/abandon", s.abandon)
 

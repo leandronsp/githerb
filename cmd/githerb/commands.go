@@ -93,6 +93,8 @@ func show(args []string) error {
 		fmt.Println()
 	}
 
+	fmt.Printf("%s\n\n", agentLine(proposal))
+
 	open := proposal.Open()
 	if len(open) == 0 {
 		fmt.Println("nothing open")
@@ -111,6 +113,23 @@ func show(args []string) error {
 	}
 
 	return nil
+}
+
+// agentLine is the same sentence the browser puts in its chip, so the two
+// surfaces never disagree about who is on it.
+func agentLine(proposal review.Proposal) string {
+	activity := proposal.Activity()
+
+	switch {
+	case activity.Working():
+		return fmt.Sprintf("%s is %s since %s", activity.Agent(), activity.Task(), activity.Since().Format("15:04"))
+	case activity.Failed():
+		return fmt.Sprintf("%s failed: %s", activity.Task(), activity.Note())
+	case proposal.Dispatched():
+		return "waiting for an agent"
+	default:
+		return "no agent on it"
+	}
 }
 
 func diff(args []string) error {
@@ -225,6 +244,28 @@ func handover(args []string) error {
 	}
 
 	fmt.Print(brief)
+
+	return nil
+}
+
+func dispatch(args []string) error {
+	if len(args) != 1 {
+		return ErrUsage
+	}
+
+	s, err := newSession()
+	if err != nil {
+		return err
+	}
+
+	use := app.Dispatch{Proposals: s.proposals, Author: s.author, Now: s.now}
+
+	proposal, err := use.Run(args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s handed over with %d open\n", proposal.ID(), len(proposal.Open()))
 
 	return nil
 }

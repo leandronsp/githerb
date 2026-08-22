@@ -98,3 +98,30 @@ func TestAFailedTaskStaysOnTheProposalWithItsReason(t *testing.T) {
 		t.Fatalf("activity is %+v, want a failed rebase", activity)
 	}
 }
+
+func TestADispatchWaitsUntilAnAgentPicksItUp(t *testing.T) {
+	t.Parallel()
+
+	asked, err := review.NewDispatch(rev, "leandro", at(t))
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+
+	queued, err := proposal(t).WithRecord(review.DispatchRecord(asked))
+	if err != nil {
+		t.Fatalf("record: %v", err)
+	}
+
+	if !queued.Dispatched() {
+		t.Fatalf("a proposal handed to an agent is not waiting for one")
+	}
+
+	taken, err := queued.WithRecord(review.WorkRecord(work(t, review.TaskApply, review.PhaseStarted, "", time.Minute)))
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	if taken.Dispatched() {
+		t.Fatalf("a proposal an agent already picked up is still queued")
+	}
+}

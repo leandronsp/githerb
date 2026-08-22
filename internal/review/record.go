@@ -17,6 +17,9 @@ const (
 	// up on it. Nothing blocks on these; they are how a person watching knows
 	// somebody is already on it.
 	KindWork Kind = "work"
+	// KindDispatch is a person handing the open notes to an agent, which is the
+	// only thing in the log that asks for work rather than reporting it.
+	KindDispatch Kind = "dispatch"
 )
 
 // The absent half of a record. Naming them says the omission is deliberate.
@@ -26,6 +29,7 @@ var (
 	noCheck      Check
 	noChunk      Chunk
 	noWork       Work
+	noDispatch   Dispatch
 )
 
 // Record is one line of the log. Exactly one of its shapes is present, and the
@@ -37,46 +41,60 @@ type Record struct {
 	check      Check
 	chunk      Chunk
 	work       Work
+	dispatch   Dispatch
 }
 
 // CommentRecord wraps a comment as a log record.
 func CommentRecord(comment Comment) Record {
-	return Record{kind: KindComment, comment: comment, resolution: noResolution, check: noCheck, chunk: noChunk, work: noWork}
+	return Record{kind: KindComment, comment: comment, resolution: noResolution, check: noCheck, chunk: noChunk, work: noWork, dispatch: noDispatch}
 }
 
 // ResolutionRecord wraps a resolution as a log record.
 func ResolutionRecord(resolution Resolution) Record {
-	return Record{kind: KindResolve, comment: noComment, resolution: resolution, check: noCheck, chunk: noChunk, work: noWork}
+	return Record{kind: KindResolve, comment: noComment, resolution: resolution, check: noCheck, chunk: noChunk, work: noWork, dispatch: noDispatch}
 }
 
 // CheckRecord wraps a check result as a log record.
 func CheckRecord(check Check) Record {
-	return Record{kind: KindCheck, comment: noComment, resolution: noResolution, check: check, chunk: noChunk, work: noWork}
+	return Record{kind: KindCheck, comment: noComment, resolution: noResolution, check: check, chunk: noChunk, work: noWork, dispatch: noDispatch}
 }
 
 // ChunkRecord wraps a decision as a log record.
 func ChunkRecord(chunk Chunk) Record {
-	return Record{kind: KindChunk, comment: noComment, resolution: noResolution, check: noCheck, chunk: chunk, work: noWork}
+	return Record{kind: KindChunk, comment: noComment, resolution: noResolution, check: noCheck, chunk: chunk, work: noWork, dispatch: noDispatch}
 }
 
 // RationaleRecord wraps the author explaining some lines. It is a comment in
 // shape and the opposite of one in intent: it answers a question rather than
 // asking one, so it never blocks.
 func RationaleRecord(comment Comment) Record {
-	return Record{kind: KindRationale, comment: comment, resolution: noResolution, check: noCheck, chunk: noChunk, work: noWork}
+	return Record{kind: KindRationale, comment: comment, resolution: noResolution, check: noCheck, chunk: noChunk, work: noWork, dispatch: noDispatch}
 }
 
 // WorkRecord wraps a line of an agent's work as a log record.
 func WorkRecord(work Work) Record {
 	return Record{
 		kind: KindWork, comment: noComment, resolution: noResolution,
-		check: noCheck, chunk: noChunk, work: work,
+		check: noCheck, chunk: noChunk, work: work, dispatch: noDispatch,
 	}
 }
 
 // Work returns the work line, and false when the record is not one.
 func (r Record) Work() (Work, bool) {
 	return r.work, r.kind == KindWork
+}
+
+// DispatchRecord wraps a request for an agent as a log record.
+func DispatchRecord(dispatch Dispatch) Record {
+	return Record{
+		kind: KindDispatch, comment: noComment, resolution: noResolution,
+		check: noCheck, chunk: noChunk, work: noWork, dispatch: dispatch,
+	}
+}
+
+// Dispatch returns the request, and false when the record is not one.
+func (r Record) Dispatch() (Dispatch, bool) {
+	return r.dispatch, r.kind == KindDispatch
 }
 
 // Kind says which shape the record carries.

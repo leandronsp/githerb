@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Proposal is the aggregate root. Every rule that spans more than one value
@@ -27,6 +28,7 @@ type Proposal struct {
 	chunks    []Chunk
 	rationale []Comment
 	work      []Work
+	asks      []Dispatch
 }
 
 // NewProposal opens a proposal at its first revision. The target is whichever
@@ -62,6 +64,7 @@ func NewProposal(id ProposalID, title string, target Branch, base, head SHA) (Pr
 		chunks:    nil,
 		rationale: nil,
 		work:      nil,
+		asks:      nil,
 	}, nil
 }
 
@@ -147,6 +150,13 @@ func (p Proposal) WithRecord(record Record) (Proposal, error) {
 
 		next := p.clone()
 		next.work = append(next.work, work)
+
+		return next, nil
+	case KindDispatch:
+		dispatch, _ := record.Dispatch()
+
+		next := p.clone()
+		next.asks = append(next.asks, dispatch)
 
 		return next, nil
 	default:
@@ -349,6 +359,32 @@ func (p Proposal) Work() []Work {
 	return out
 }
 
+// Dispatched reports whether the head revision is waiting for an agent: a
+// person handed it over and nothing has picked it up since.
+func (p Proposal) Dispatched() bool {
+	head := p.Head().sha
+
+	var asked time.Time
+
+	for _, ask := range p.asks {
+		if ask.revision == head && ask.at.After(asked) {
+			asked = ask.at
+		}
+	}
+
+	if asked.IsZero() {
+		return false
+	}
+
+	for _, line := range p.work {
+		if line.revision == head && !line.at.Before(asked) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Activity is what the work log adds up to: idle, working, or stopped.
 func (p Proposal) Activity() Activity { return activityOf(p.work) }
 
@@ -442,6 +478,9 @@ func (p Proposal) clone() Proposal {
 	work := make([]Work, len(p.work))
 	copy(work, p.work)
 
+	asks := make([]Dispatch, len(p.asks))
+	copy(asks, p.asks)
+
 	return Proposal{
 		id:        p.id,
 		title:     p.title,
@@ -455,5 +494,6 @@ func (p Proposal) clone() Proposal {
 		chunks:    chunks,
 		rationale: rationale,
 		work:      work,
+		asks:      asks,
 	}
 }

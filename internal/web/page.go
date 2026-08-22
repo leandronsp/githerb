@@ -211,7 +211,8 @@ func (p Page) Timeline() []review.Work {
 // anyone who wants it; a column that scrolls is not where you read history.
 const timelineDepth = 8
 
-// AgentState is idle, working or failed, which is also the chip's class.
+// AgentState is idle, queued, working or failed, which is also the chip's
+// class.
 func (p Page) AgentState() string {
 	activity := p.Activity()
 
@@ -220,6 +221,8 @@ func (p Page) AgentState() string {
 		return "working"
 	case activity.Failed():
 		return "failed"
+	case p.Proposal.Dispatched():
+		return "queued"
 	default:
 		return "idle"
 	}
@@ -234,6 +237,8 @@ func (p Page) AgentSays() string {
 		return fmt.Sprintf("%s %s", activity.Agent(), activity.Task())
 	case activity.Failed():
 		return fmt.Sprintf("%s failed", activity.Task())
+	case p.Proposal.Dispatched():
+		return "waiting for an agent"
 	default:
 		return "no agent on it"
 	}
@@ -308,6 +313,8 @@ func fingerprint(proposal review.Proposal, open []review.Comment) string {
 	for _, line := range proposal.Work() {
 		fmt.Fprintf(&b, "%s/%s@%d,", line.Task(), line.Phase(), line.At().Unix())
 	}
+
+	fmt.Fprintf(&b, "queued=%t", proposal.Dispatched())
 
 	sum := sha256.Sum256([]byte(b.String()))
 

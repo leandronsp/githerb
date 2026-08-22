@@ -8,6 +8,19 @@
   const where = composer.querySelector(".where");
   const send = composer.querySelector("button");
 
+  const said = document.querySelector(".said");
+  let saying = 0;
+
+  // The bar and the panel are replaced whenever the log moves, so anything the
+  // page wants to say has to live outside both of them.
+  const say = (text) => {
+    said.textContent = text;
+    said.hidden = false;
+
+    clearTimeout(saying);
+    saying = setTimeout(() => (said.hidden = true), 4000);
+  };
+
   let pick = null;
   let anchor = null;
 
@@ -180,8 +193,7 @@
 
     if (event.target.closest("[data-land]")) post("land");
 
-    const hand = event.target.closest("[data-handover]");
-    if (hand) handover(hand);
+    if (event.target.closest("[data-handover]")) handover();
 
     if (event.target.closest("[data-abandon]") && confirm("Abandon this proposal?")) {
       post("abandon");
@@ -190,24 +202,23 @@
 
   // The whole review, in one piece, on the clipboard. A reviewer leaves notes
   // for an hour and hands them over once, the way an annotation buffer works.
-  const handover = async (button) => {
+  const handover = async () => {
     const brief = await (await fetch(`/p/${proposal}/handover`)).text();
     if (!brief.trim()) return;
 
-    const said = button.textContent;
+    // The record is what an agent watching the repository acts on. The
+    // clipboard is for the times you are the agent.
+    await post("dispatch");
 
     try {
       await navigator.clipboard.writeText(brief);
-      button.textContent = "Copied. Paste it to your agent";
+      say("Handed over. The notes are on the clipboard too");
     } catch {
       // No clipboard permission: hand it over the way anything else is handed
       // over on a terminal, by leaving it somewhere it can be selected.
       box.value = brief;
-      button.textContent = "Clipboard refused. It is in the box";
+      say("Handed over. The clipboard refused, so it is in the box");
     }
-
-    button.dataset.handedOver = "1";
-    setTimeout(() => (button.textContent = said), 4000);
   };
 
   send.addEventListener("click", leave);
