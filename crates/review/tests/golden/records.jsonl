@@ -1,0 +1,10 @@
+{"v":1,"kind":"comment","id":"9b052da286a4","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","file":"internal/app/land.go","side":"new","start":42,"end":47,"body":"this leaks the handle when init fails","author":"leandro","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"rationale","id":"9e7d1cb7cdbb","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","file":"internal/app/land.go","side":"new","start":42,"end":47,"body":"this leaks the handle when init fails","author":"leandro","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"resolve","id":"425ad153c4ec","target":"9b052da286a4","author":"claude","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"reply","id":"052151e2c53b","target":"9b052da286a4","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","body":"renamed it","author":"claude-code","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"check","id":"","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","name":"suite","status":"passed","seconds":41,"author":"githerb-ci@laptop","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"chunk","id":"","title":"Checks appear where you already look","surface":"cmd/githerb","before":"you had to open the browser","after":"list carries a column","decision":"one column in list","rejected":"a separate checks command","author":"","at":""}
+{"v":1,"kind":"chunk","id":"","file":"cmd/githerb/commands.go","side":"new","start":42,"end":47,"title":"Checks appear where you already look","surface":"cmd/githerb","before":"you had to open the browser","after":"list carries a column","decision":"one column in list","rejected":"a separate checks command","author":"","at":""}
+{"v":1,"kind":"work","id":"","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","task":"apply","phase":"started","author":"githerb-run","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"work","id":"","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","body":"conflicts in a.txt","task":"rebase","phase":"failed","author":"githerb-run","at":"2026-08-21T18:04:05Z"}
+{"v":1,"kind":"dispatch","id":"","rev":"9f6c1e2a3b4d5e6f708192a3b4c5d6e7f8091a2b","author":"leandro","at":"2026-08-21T18:04:05Z"}
