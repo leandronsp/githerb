@@ -257,7 +257,11 @@ TOML
 }
 
 do_land_from_browser() {
-  [ "$(js 'document.querySelector(".land").disabled')" = "false" ] || return 1
+  if [ "$(js 'document.querySelector(".land").disabled')" != "false" ]; then
+    echo "blocked: $(js 'document.querySelector("#bar").innerText' | tr "\n" " ")"
+    cd "$WORK" && "$BIN" show "$ID" | head -20
+    return 1
+  fi
   click '.land' false || return 1
   sleep 1.5
 

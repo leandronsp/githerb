@@ -199,6 +199,30 @@
   .shift dd { margin: 0; }
   .shift .rejected { color: var(--ink-soft); }
 
+  /* a note and what was said under it, where the code is */
+  .thread {
+    background: var(--raised); border-left: 2px solid var(--pick-edge);
+    padding: .6rem .85rem;
+  }
+  .thread .turn { margin-bottom: .5rem; }
+  .thread .answer { border-left: 1px solid var(--rule); padding-left: .7rem; margin-left: .2rem; }
+  .thread .who {
+    margin: 0; font: 10.5px ui-monospace, monospace; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--ink-faint);
+  }
+  .thread .who .when { margin-left: .5rem; }
+  .thread .body { margin: .1rem 0 0; font-size: 13.5px; line-height: 1.5; }
+  .thread .doing { display: flex; gap: .4rem; margin: .5rem 0 0; }
+
+  .notes .answer {
+    margin: .3rem 0 .4rem .6rem; padding-left: .6rem; font-size: 13px;
+    border-left: 1px solid var(--rule); color: var(--ink-soft);
+  }
+  .notes .answer .who {
+    font: 10px ui-monospace, monospace; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--herb); margin-right: .5rem;
+  }
+
   /* the author explaining, which never blocks anything */
   .explains {
     background: var(--herb-wash); border-left: 2px solid var(--herb);

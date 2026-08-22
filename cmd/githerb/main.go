@@ -34,6 +34,7 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb diff <proposal>
   githerb comment <proposal> --file F --line N[:M] [--side new|old] --body "..."
   githerb comments <proposal> [--json] [--all]
+  githerb reply <proposal> <comment> --body "..."
   githerb resolve <proposal> <comment>
   githerb handover <proposal> [--agent]   the open notes as one brief, for an agent
   githerb work start|done|fail <proposal> --task apply|rebase|check [--note "..."]
@@ -73,6 +74,8 @@ func run(args []string) error {
 		return comment(rest)
 	case "comments":
 		return comments(rest)
+	case "reply":
+		return replyCmd(rest)
 	case "resolve":
 		return resolve(rest)
 	case "handover":

@@ -315,3 +315,71 @@ func TestARunnerHandsBackAClaimItFindsAbandoned(t *testing.T) {
 		t.Fatalf("the proposal is still %+v, want idle", after.Activity())
 	}
 }
+
+func TestAnAgentAnswersInWordsWithoutTouchingCode(t *testing.T) {
+	t.Parallel()
+
+	k := setup(t)
+
+	git(t, k.dir, "checkout", "-q", "-b", "work")
+	write(t, k.dir, "a.txt", "one\nTWO\n")
+	git(t, k.dir, "commit", "-qam", "the work")
+
+	proposal := k.propose(t, "The work", "main")
+
+	annotate := app.Annotate{
+		Proposals: k.proposals, Author: "leandro",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	note, err := annotate.Run(string(proposal.ID()), "a.txt", "new", 2, 2, "only claude, or any agent?")
+	if err != nil {
+		t.Fatalf("annotate: %v", err)
+	}
+
+	dispatch := app.Dispatch{
+		Proposals: k.proposals, Author: "leandro",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	if _, err := dispatch.Run(string(proposal.ID())); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+
+	// A question deserves a sentence, not a commit. The agent reads the id out
+	// of the brief and writes where the environment tells it to.
+	talker := `grep -o '\[note [0-9a-f]*\]' | head -1 | tr -d '[]' | ` +
+		`sed 's/note /{"note":"/;s/$/","say":"any agent CLI works, the flags are Claude Code specific"}/' ` +
+		`>> "$GITHERB_ANSWERS"`
+
+	jobs, err := k.loop(talker).Once(context.Background())
+	if err != nil {
+		t.Fatalf("once: %v", err)
+	}
+
+	if len(jobs) != 1 || jobs[0].Task != review.TaskApply {
+		t.Fatalf("the pass did %+v, want one apply", jobs)
+	}
+
+	after, err := k.proposals.Load(proposal.ID())
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	if after.Head().Number() != 1 {
+		t.Fatalf("a question produced revision %d, and it should produce none", after.Head().Number())
+	}
+
+	answers := after.Answers(note.ID())
+	if len(answers) != 1 || answers[0].Author() != "claude-code" {
+		t.Fatalf("the thread carries %+v, want one answer from the agent", answers)
+	}
+
+	if !after.Activity().Idle() {
+		t.Fatalf("answering read as %+v, want a finished job", after.Activity())
+	}
+
+	if len(after.Open()) != 1 {
+		t.Fatalf("the note stopped being open because it was answered, and answering is not resolving")
+	}
+}

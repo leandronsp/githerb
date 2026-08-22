@@ -39,10 +39,14 @@ func next(proposal review.Proposal, stale bool, required []review.CheckName) (Jo
 		return noJob, false
 	}
 
-	// Handing the notes over again is how a person says try it again, and it is
-	// the only thing that clears a failure. Everything else waits, because a
+	// A handover is the trigger, and the only thing that clears a failure. An
+	// agent that speaks without being asked is an agent nobody wants, and a
 	// loop that retries what already failed burns tokens all night.
 	if proposal.Dispatched() {
+		if stale && len(proposal.Open()) == 0 {
+			return Job{ID: proposal.ID(), Task: review.TaskRebase, Why: "handed over, and behind"}, true
+		}
+
 		return Job{ID: proposal.ID(), Task: review.TaskApply, Why: "notes were handed over"}, true
 	}
 
@@ -52,6 +56,9 @@ func next(proposal review.Proposal, stale bool, required []review.CheckName) (Jo
 
 	switch {
 	case stale:
+		// Untriggered, so this one is mechanical: git can replay it or nobody
+		// touches it. The agent is not called for a conflict nobody asked it
+		// to look at.
 		return Job{ID: proposal.ID(), Task: review.TaskRebase, Why: "the target ran ahead"}, true
 	case missing(proposal, required):
 		return Job{ID: proposal.ID(), Task: review.TaskCheck, Why: "the head has not been checked"}, true

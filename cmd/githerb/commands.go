@@ -323,6 +323,35 @@ func workCmd(args []string) error {
 	return nil
 }
 
+func replyCmd(args []string) error {
+	if len(args) < 2 {
+		return ErrUsage
+	}
+
+	set := flag.NewFlagSet("reply", flag.ContinueOnError)
+	body := set.String("body", "", "what the answer says")
+
+	if err := set.Parse(args[2:]); err != nil {
+		return ErrUsage
+	}
+
+	s, err := newSession()
+	if err != nil {
+		return err
+	}
+
+	use := app.Reply{Proposals: s.proposals, Author: s.author, Now: s.now}
+
+	answer, err := use.Run(args[0], args[1], *body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(answer.ID())
+
+	return nil
+}
+
 func resolve(args []string) error {
 	if len(args) != 2 {
 		return ErrUsage

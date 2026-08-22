@@ -110,6 +110,35 @@ func (p Page) Missing(required []review.CheckName) int {
 	return len(required) - len(p.Checks)
 }
 
+// Thread is a note and everything said under it, which is how a review reads
+// once anyone has answered.
+type Thread struct {
+	Note    review.Comment
+	Answers []review.Reply
+}
+
+// Threads are the open notes anchored on a line, each with its answers, so the
+// conversation sits in the code it is about.
+func (p Page) Threads(file string, side review.Side, line int) []Thread {
+	var found []Thread
+
+	for _, note := range p.Open {
+		span := note.Span()
+		if string(note.File()) != file || span.Side() != side || span.End() != line {
+			continue
+		}
+
+		found = append(found, Thread{Note: note, Answers: p.Proposal.Answers(note.ID())})
+	}
+
+	return found
+}
+
+// Answers are the replies under a note, for the panel.
+func (p Page) Answers(note review.Comment) []review.Reply {
+	return p.Proposal.Answers(note.ID())
+}
+
 // Explains are the author's notes that end on a given line, so an explanation
 // sits under the code it is about rather than in a list somewhere else.
 func (p Page) Explains(file string, side review.Side, line int) []review.Comment {
@@ -301,6 +330,11 @@ func fingerprint(proposal review.Proposal, open []review.Comment) string {
 
 	for _, comment := range open {
 		fmt.Fprintf(&b, "%s,", comment.ID())
+
+		// The answers, so a reply arriving redraws the thread it belongs to.
+		for _, answer := range proposal.Answers(comment.ID()) {
+			fmt.Fprintf(&b, "%s.", answer.ID())
+		}
 	}
 
 	// Sorted, because map order in Go is deliberately random and a fingerprint

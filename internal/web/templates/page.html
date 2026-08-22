@@ -42,6 +42,24 @@
                   <span class="no new">{{ if .New }}{{ .New }}{{ end }}</span>
                   <span class="text">{{ .Text }}</span>
                 </div>
+                {{ range $.Threads $file $side $no }}
+                  <div class="thread" data-note="{{ .Note.ID }}">
+                    <div class="turn">
+                      <p class="who">{{ .Note.Author }}<span class="when">{{ hhmm .Note.At }}</span></p>
+                      <p class="body">{{ .Note.Body }}</p>
+                    </div>
+                    {{ range .Answers }}
+                      <div class="turn answer">
+                        <p class="who">{{ .Author }}<span class="when">{{ hhmm .At }}</span></p>
+                        <p class="body">{{ .Body }}</p>
+                      </div>
+                    {{ end }}
+                    <p class="doing">
+                      <button class="quiet" data-reply="{{ .Note.ID }}">reply</button>
+                      <button class="quiet" data-resolve="{{ .Note.ID }}">resolve</button>
+                    </p>
+                  </div>
+                {{ end }}
                 {{ range $.DecidesAt $file $side $no }}
                   <div class="decided">
                     <a href="#d{{ .N }}">{{ .N }}. {{ .Chunk.Title }}</a>

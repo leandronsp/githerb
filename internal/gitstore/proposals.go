@@ -229,7 +229,9 @@ func (s Store) foldRecords(proposal review.Proposal, revisions []review.Revision
 		}
 
 		for _, record := range records {
-			if record.Kind() == review.KindResolve {
+			// A reply and a resolution both name a note, so the note has to be
+			// folded before either of them: the log is sorted, never ordered.
+			if record.Kind() == review.KindResolve || record.Kind() == review.KindReply {
 				resolutions = append(resolutions, record)
 			} else {
 				comments = append(comments, record)
@@ -441,6 +443,12 @@ func marshalRecord(record review.Record) (string, error) {
 		dispatch, _ := record.Dispatch()
 
 		line, err := dispatch.MarshalLine()
+
+		return string(line), wrap(err)
+	case review.KindReply:
+		reply, _ := record.Reply()
+
+		line, err := reply.MarshalLine()
 
 		return string(line), wrap(err)
 	default:

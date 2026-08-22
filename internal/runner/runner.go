@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/leandronsp/githerb/internal/app"
@@ -174,15 +175,78 @@ func (r Runner) perform(ctx context.Context, job Job, proposal review.Proposal) 
 	}
 }
 
-// apply hands the open notes to the agent in a worktree of the head, and takes
-// whatever it committed as the next revision.
+// apply hands the open notes to the agent in a worktree of the head. The agent
+// answers them in words, in code, or in both, and neither half is optional
+// enough to fail on its own: a question answered without a commit is work.
 func (r Runner) apply(ctx context.Context, proposal review.Proposal) (string, error) {
 	brief := proposal.Brief()
 	if brief == "" {
 		return "", ErrNothingToApply
 	}
 
-	return r.agentRevision(ctx, proposal, brief, nil)
+	path, err := answersPath(proposal.ID())
+	if err != nil {
+		return "", err
+	}
+
+	defer func() { _ = os.Remove(path) }()
+
+	head := proposal.Head().SHA()
+
+	where, err := openTree(r.Root, head)
+	if err != nil {
+		return "", err
+	}
+
+	defer where.close()
+
+	if _, err := r.call(ctx, where, brief, "GITHERB_ANSWERS="+path); err != nil {
+		return "", err
+	}
+
+	said, err := r.speak(proposal.ID(), path)
+	if err != nil {
+		return "", err
+	}
+
+	moved, err := where.head()
+	if err != nil {
+		return "", err
+	}
+
+	if moved == head {
+		if said == 0 {
+			return "", ErrNothingChanged
+		}
+
+		return fmt.Sprintf("answered %d, no code changed", said), nil
+	}
+
+	next, err := r.record(proposal, moved)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("revision %d at %s, answered %d", next.Head().Number(), short(moved), said), nil
+}
+
+// record files the commit an agent left as the next revision.
+func (r Runner) record(proposal review.Proposal, moved review.SHA) (review.Proposal, error) {
+	revise := app.Revise{Proposals: r.Proposals, Git: r.Git}
+
+	next, err := revise.Run(string(proposal.ID()), string(moved))
+
+	// An agent that happens to have this CLI may have recorded it itself. The
+	// commit is what matters and it is there either way.
+	if errors.Is(err, review.ErrRevisionKnown) {
+		return r.Proposals.Load(proposal.ID())
+	}
+
+	if err != nil {
+		return review.Proposal{}, err
+	}
+
+	return next, nil
 }
 
 // rebase moves the work onto a target that ran ahead. Git does it when the
@@ -198,6 +262,14 @@ func (r Runner) rebase(ctx context.Context, proposal review.Proposal) (string, e
 		_, err := where.git(ctx, "rebase", "--onto", string(tip), string(proposal.Base()))
 		if err == nil {
 			return nil
+		}
+
+		// A conflict needs judgement, and judgement is the agent's, which only
+		// speaks when it was asked to. Otherwise this stops and says so.
+		if !proposal.Dispatched() {
+			_, _ = where.git(ctx, "rebase", "--abort")
+
+			return ErrConflictsLeft
 		}
 
 		if _, called := r.call(ctx, where, conflictBrief(proposal, tip)); called != nil {

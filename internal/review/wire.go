@@ -86,6 +86,48 @@ func (w Work) line() line {
 	}
 }
 
+// MarshalLine renders the answer as the single line it is stored as.
+func (r Reply) MarshalLine() ([]byte, error) { return marshal(r.line()) }
+
+func (r Reply) line() line {
+	return line{
+		Version:  version,
+		Kind:     KindReply,
+		ID:       r.id,
+		Target:   r.target,
+		Rev:      r.revision,
+		File:     "",
+		Side:     "",
+		Start:    0,
+		End:      0,
+		Body:     r.body,
+		Title:    "",
+		Surface:  "",
+		Before:   "",
+		After:    "",
+		Decided:  "",
+		Rejected: "",
+		Task:     "",
+		Phase:    "",
+		Name:     "",
+		Status:   "",
+		Seconds:  0,
+		Author:   r.author,
+		At:       r.at.Format(time.RFC3339),
+	}
+}
+
+func (r Reply) identified() (Reply, error) {
+	id, err := derive(r.line())
+	if err != nil {
+		return Reply{}, err
+	}
+
+	r.id = id
+
+	return r, nil
+}
+
 // MarshalLine renders the request as the single line it is stored as.
 func (d Dispatch) MarshalLine() ([]byte, error) { return marshal(d.line()) }
 
@@ -316,6 +358,8 @@ func ParseLine(raw []byte) (Record, error) {
 		return parseWork(l, moment)
 	case KindDispatch:
 		return parseDispatch(l, moment)
+	case KindReply:
+		return parseReply(l, moment)
 	default:
 		return Record{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}
@@ -403,4 +447,13 @@ func parseDispatch(l line, at time.Time) (Record, error) {
 	}
 
 	return DispatchRecord(dispatch), nil
+}
+
+func parseReply(l line, at time.Time) (Record, error) {
+	reply, err := NewReply(l.Target, l.Rev, l.Body, l.Author, at)
+	if err != nil {
+		return Record{}, err
+	}
+
+	return ReplyRecord(reply), nil
 }

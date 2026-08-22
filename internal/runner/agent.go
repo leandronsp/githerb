@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -16,13 +17,14 @@ var ErrNoAgent = errors.New("this repository declares no [agent] command in .git
 // githerb never learns what an agent is: the command comes from the repository
 // the same way a check command does, and the brief is the same text a person
 // would have pasted.
-func (r Runner) call(ctx context.Context, where tree, brief string) (string, error) {
+func (r Runner) call(ctx context.Context, where tree, brief string, env ...string) (string, error) {
 	if strings.TrimSpace(r.Agent) == "" {
 		return "", ErrNoAgent
 	}
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", r.Agent) //nolint:gosec // G204: declared by the repository, like a check
 	cmd.Dir = where.dir
+	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdin = strings.NewReader(brief)
 
 	var out bytes.Buffer

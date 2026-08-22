@@ -50,6 +50,22 @@ func dispatched(t *testing.T, minutes int) review.Record {
 	return review.DispatchRecord(ask)
 }
 
+func noted(t *testing.T, body string, minutes int) review.Record {
+	t.Helper()
+
+	span, err := review.NewSpan(review.SideNew, 2, 2)
+	if err != nil {
+		t.Fatalf("span: %v", err)
+	}
+
+	made, err := review.NewComment(head, "a.txt", span, body, "leandro", at(minutes))
+	if err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+
+	return review.CommentRecord(made)
+}
+
 func worked(t *testing.T, task review.Task, phase review.Phase, minutes int) review.Record {
 	t.Helper()
 
@@ -75,9 +91,16 @@ func TestWhatThePendingWorkIs(t *testing.T) {
 		{"handed over", proposal(t, dispatched(t, 1)), false, review.TaskApply},
 		{"the target ran ahead", proposal(t), true, review.TaskRebase},
 		{"never checked", proposal(t), false, review.TaskCheck},
-		{"handed over and stale, notes first", proposal(t, dispatched(t, 1)), true, review.TaskApply},
+		{
+			"handed over and stale, notes first",
+			proposal(t, noted(t, "name this", 1), dispatched(t, 2)), true, review.TaskApply,
+		},
 		{"already picked up", proposal(t, dispatched(t, 1), worked(t, review.TaskApply, review.PhaseStarted, 2)), true, ""},
 		{"gave up on this revision", proposal(t, worked(t, review.TaskCheck, review.PhaseFailed, 2)), true, ""},
+		{
+			"handed over and behind, with nothing open",
+			proposal(t, dispatched(t, 1)), true, review.TaskRebase,
+		},
 		{
 			"handed over again after a failure",
 			proposal(t, dispatched(t, 1), worked(t, review.TaskApply, review.PhaseFailed, 2), dispatched(t, 3)),

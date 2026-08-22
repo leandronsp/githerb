@@ -29,6 +29,7 @@ type Proposal struct {
 	rationale []Comment
 	work      []Work
 	asks      []Dispatch
+	answers   []Reply
 }
 
 // NewProposal opens a proposal at its first revision. The target is whichever
@@ -65,6 +66,7 @@ func NewProposal(id ProposalID, title string, target Branch, base, head SHA) (Pr
 		rationale: nil,
 		work:      nil,
 		asks:      nil,
+		answers:   nil,
 	}, nil
 }
 
@@ -159,6 +161,10 @@ func (p Proposal) WithRecord(record Record) (Proposal, error) {
 		next.asks = append(next.asks, dispatch)
 
 		return next, nil
+	case KindReply:
+		reply, _ := record.Reply()
+
+		return p.withReply(reply)
 	default:
 		return Proposal{}, fmt.Errorf("%q: %w", record.Kind(), ErrUnknownKind)
 	}
@@ -359,6 +365,38 @@ func (p Proposal) Work() []Work {
 	return out
 }
 
+// withReply files an answer under the note it answers, which has to be a note
+// this proposal carries.
+func (p Proposal) withReply(reply Reply) (Proposal, error) {
+	if !p.seen(reply.target) {
+		return Proposal{}, fmt.Errorf("%q: %w", reply.target, ErrUnknownComment)
+	}
+
+	if p.seen(reply.id) {
+		return p, nil
+	}
+
+	next := p.clone()
+	next.answers = append(next.answers, reply)
+
+	return next, nil
+}
+
+// Answers are the replies to a note, oldest first, which is the thread.
+func (p Proposal) Answers(note ID) []Reply {
+	var thread []Reply
+
+	for _, reply := range p.answers {
+		if reply.target == note {
+			thread = append(thread, reply)
+		}
+	}
+
+	sort.SliceStable(thread, func(i, j int) bool { return thread[i].at.Before(thread[j].at) })
+
+	return thread
+}
+
 // Dispatched reports whether the head revision is waiting for an agent: a
 // person handed it over and nothing has picked it up since.
 func (p Proposal) Dispatched() bool {
@@ -481,6 +519,9 @@ func (p Proposal) clone() Proposal {
 	asks := make([]Dispatch, len(p.asks))
 	copy(asks, p.asks)
 
+	answers := make([]Reply, len(p.answers))
+	copy(answers, p.answers)
+
 	return Proposal{
 		id:        p.id,
 		title:     p.title,
@@ -495,5 +536,6 @@ func (p Proposal) clone() Proposal {
 		rationale: rationale,
 		work:      work,
 		asks:      asks,
+		answers:   answers,
 	}
 }

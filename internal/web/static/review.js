@@ -24,6 +24,10 @@
   let pick = null;
   let anchor = null;
 
+  // The note being answered. A reply belongs to a thread, not to a range of
+  // lines, so it is the one selection that has nothing to do with the gutter.
+  let answering = null;
+
   const paint = () => {
     for (const line of document.querySelectorAll(".line")) {
       const on =
@@ -35,8 +39,8 @@
       line.classList.toggle("picked", Boolean(on));
     }
 
-    composer.hidden = !pick;
-    if (!pick) return;
+    composer.hidden = !pick && !answering;
+    if (!pick || answering) return;
 
     // Park the composer under the last line it is about. The eye does not have
     // to travel, which is the whole point of writing the note here.
@@ -53,8 +57,29 @@
   const drop = () => {
     pick = null;
     anchor = null;
+    answering = null;
     box.value = "";
+    box.placeholder = asking;
     paint();
+  };
+
+  const asking = box.placeholder;
+
+  // Answering parks the composer under the thread it belongs to, the way
+  // picking lines parks it under the last line picked.
+  const answer = (note) => {
+    const thread = document.querySelector(`.thread[data-note="${CSS.escape(note)}"]`);
+    if (!thread) return;
+
+    pick = null;
+    anchor = null;
+    answering = note;
+
+    thread.after(composer);
+    composer.hidden = false;
+    where.textContent = `answering ${thread.querySelector(".body").textContent.trim().slice(0, 60)}`;
+    box.placeholder = "what do you want to say back?";
+    box.focus();
   };
 
   const post = async (path, payload) => {
@@ -68,7 +93,15 @@
   };
 
   const leave = async () => {
-    if (!pick || !box.value.trim()) return;
+    if (!box.value.trim()) return;
+
+    if (answering) {
+      if (await post("reply", { commentID: answering, body: box.value })) drop();
+
+      return;
+    }
+
+    if (!pick) return;
 
     const ok = await post("comment", {
       selFile: pick.file,
@@ -184,6 +217,13 @@
         ? folded.delete(file.dataset.path)
         : folded.add(file.dataset.path);
       fold();
+
+      return;
+    }
+
+    const replying = event.target.closest("[data-reply]");
+    if (replying) {
+      answer(replying.dataset.reply);
 
       return;
     }

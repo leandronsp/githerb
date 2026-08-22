@@ -173,6 +173,27 @@ func (s Server) comment(w http.ResponseWriter, r *http.Request) {
 	s.clear(w)
 }
 
+// reply answers a note in its thread, which is where a review turns into a
+// conversation instead of a list of demands.
+func (s Server) reply(w http.ResponseWriter, r *http.Request) {
+	want, err := read(r)
+	if err != nil {
+		s.fail(w, err)
+
+		return
+	}
+
+	use := app.Reply{Proposals: s.Proposals, Author: s.Author, Now: s.Now}
+
+	if _, err := use.Run(r.PathValue("id"), want.ID, want.Body); err != nil {
+		s.fail(w, err)
+
+		return
+	}
+
+	s.clear(w)
+}
+
 func (s Server) resolve(w http.ResponseWriter, r *http.Request) {
 	want, err := read(r)
 	if err != nil {
