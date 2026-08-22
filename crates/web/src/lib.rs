@@ -29,7 +29,10 @@ pub mod model;
 pub mod render;
 mod request;
 mod response;
+mod routes;
 mod sse;
+mod stream;
+pub mod surface;
 mod watch;
 
 pub use assets::{asset_hash, static_asset};
@@ -39,4 +42,5 @@ pub use model::{Board, Page, fingerprint};
 pub use request::{MAX_BODY, Method, Request};
 pub use response::Response;
 pub use sse::Sink;
+pub use surface::{HEARTBEAT, Surface, serve, watching};
 pub use watch::{Subscription, Wakeup, Watcher};

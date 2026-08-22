@@ -376,8 +376,11 @@
 
   const listen = () => {
     const query = proposal
-      ? "/p/" + proposal + "/events" + (location.search ? location.search + "&" : "?") + "fp=" + body.dataset.fp
-      : "/events";
+      ? "/p/" + proposal + "/events" +
+        (location.search ? location.search + "&" : "?") +
+        "fp=" + body.dataset.fp +
+        "&head=" + body.dataset.head
+      : "/events?fp=" + body.dataset.fp;
     stream = new EventSource(query);
     stream.addEventListener("update", (event) => apply(JSON.parse(event.data)));
     stream.addEventListener("revision", () => location.reload());

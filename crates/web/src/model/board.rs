@@ -5,6 +5,7 @@
 //! cost twenty git processes to draw a list.
 
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use review::{Proposal, ProposalId, State};
 
@@ -86,6 +87,7 @@ pub struct Board {
     open: Vec<Entry>,
     landed: Vec<Entry>,
     abandoned: Vec<Entry>,
+    fingerprint: String,
 }
 
 impl Board {
@@ -122,6 +124,7 @@ impl Board {
         for group in [&mut board.open, &mut board.landed, &mut board.abandoned] {
             group.sort_by_key(|entry| std::cmp::Reverse(entry.sort));
         }
+        board.fingerprint = fingerprint(&board);
         board
     }
 
@@ -154,6 +157,40 @@ impl Board {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// The hash of everything the board draws, which is what an open board
+    /// compares before anything is pushed to it.
+    #[must_use]
+    pub fn fingerprint(&self) -> &str {
+        &self.fingerprint
+    }
+}
+
+/// Hash what the board shows, and only that: a proposal an agent picked up
+/// looks the same in a list, and pushing an identical page is what the old
+/// surface did.
+fn fingerprint(board: &Board) -> String {
+    let mut hasher = DefaultHasher::new();
+
+    for (group, entries) in [
+        ("open", &board.open),
+        ("landed", &board.landed),
+        ("abandoned", &board.abandoned),
+    ] {
+        group.hash(&mut hasher);
+        for entry in entries {
+            entry.id.hash(&mut hasher);
+            entry.title.hash(&mut hasher);
+            entry.target.hash(&mut hasher);
+            entry.revision.hash(&mut hasher);
+            entry.notes.hash(&mut hasher);
+            entry.added.hash(&mut hasher);
+            entry.removed.hash(&mut hasher);
+            entry.checks.hash(&mut hasher);
+        }
+    }
+
+    format!("{:016x}", hasher.finish())
 }
 
 /// The day a proposal was opened, which is all a list has room for.

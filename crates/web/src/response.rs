@@ -71,6 +71,18 @@ impl Response {
         Self::plain(404, "not found")
     }
 
+    /// A file served as itself, whose type the caller already knows.
+    #[must_use]
+    pub fn asset(content_type: &str, body: impl Into<String>) -> Self {
+        Self::of(200, content_type, body.into().into_bytes())
+    }
+
+    /// The page that says there is nothing at that address.
+    #[must_use]
+    pub fn missing(body: impl Into<String>) -> Self {
+        Self::of(404, "text/html; charset=utf-8", body.into().into_bytes())
+    }
+
     /// The request was understood and refused; the message says why.
     #[must_use]
     pub fn bad_request(message: impl Into<String>) -> Self {

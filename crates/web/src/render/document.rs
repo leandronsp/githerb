@@ -19,7 +19,7 @@ const THEME: &str = r#"try{var t=localStorage.getItem("githerb:theme");if(t)docu
 #[must_use]
 pub fn page(page: &Page) -> Markup {
     let body = html! {
-        body data-proposal=(page.id()) data-fp=(page.fingerprint()) {
+        body data-proposal=(page.id()) data-head=(page.head()) data-fp=(page.fingerprint()) {
             (bar::bar(page))
             div id="frame" {
                 (rail::rail(page))
@@ -104,7 +104,7 @@ mod tests {
         let page = Page::build(&proposal(), &patch(), &[], None);
         let html = self::page(&page).into_string();
         let expected = format!(
-            "<body data-proposal=\"demo\" data-fp=\"{}\">",
+            "<body data-proposal=\"demo\" data-head=\"1\" data-fp=\"{}\">",
             page.fingerprint()
         );
         assert!(html.contains(&expected), "{html}");

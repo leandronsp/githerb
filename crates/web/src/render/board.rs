@@ -14,7 +14,7 @@ use crate::render::document::shell;
 #[must_use]
 pub fn board_page(rows: &Board) -> Markup {
     let body = html! {
-        body data-board {
+        body data-board data-fp=(rows.fingerprint()) {
             header id="bar" class="board" {
                 div class="who" {
                     a class="mark" href="/" { "githerb" }
@@ -127,7 +127,7 @@ mod tests {
     fn the_board_page_is_a_document() {
         let html = board_page(&Board::default()).into_string();
         assert!(html.starts_with("<!DOCTYPE html>"), "{html}");
-        assert!(html.contains("<body data-board>"), "{html}");
+        assert!(html.contains("<body data-board data-fp="), "{html}");
         assert!(
             html.contains("<title>proposals · githerb</title>"),
             "{html}"
