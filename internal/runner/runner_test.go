@@ -264,3 +264,54 @@ func trim(out string) string {
 
 	return out
 }
+
+func TestARunnerHandsBackAClaimItFindsAbandoned(t *testing.T) {
+	t.Parallel()
+
+	k := setup(t)
+
+	git(t, k.dir, "checkout", "-q", "-b", "work")
+	write(t, k.dir, "a.txt", "one\nTWO\n")
+	git(t, k.dir, "commit", "-qam", "the work")
+
+	proposal := k.propose(t, "The work", "main")
+
+	// A runner that died mid-job leaves this behind.
+	report := app.Report{
+		Proposals: k.proposals, Author: "githerb-run",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	if _, err := report.Run(string(proposal.ID()), "check", "started", ""); err != nil {
+		t.Fatalf("report: %v", err)
+	}
+
+	stuck, err := k.proposals.Load(proposal.ID())
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	if !stuck.Activity().Working() {
+		t.Fatalf("the fixture did not leave a claim: %+v", stuck.Activity())
+	}
+
+	loop := k.loop("true")
+
+	cleared, err := loop.Recover()
+	if err != nil {
+		t.Fatalf("recover: %v", err)
+	}
+
+	if cleared != 1 {
+		t.Fatalf("it handed back %d claims, want 1", cleared)
+	}
+
+	after, err := k.proposals.Load(proposal.ID())
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	if !after.Activity().Idle() {
+		t.Fatalf("the proposal is still %+v, want idle", after.Activity())
+	}
+}

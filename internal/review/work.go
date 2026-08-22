@@ -26,6 +26,10 @@ const (
 	PhaseStarted  Phase = "started"
 	PhaseFinished Phase = "finished"
 	PhaseFailed   Phase = "failed"
+	// PhaseCleared is a claim handed back without an answer, which is what a
+	// runner killed mid-job leaves behind. It is not a failure: the task was
+	// never tried to the end, so it stays available.
+	PhaseCleared Phase = "cleared"
 )
 
 // Work is one line of what an agent did, appended as it happens. Two of them
@@ -81,7 +85,7 @@ func (t Task) known() bool {
 
 func (p Phase) known() bool {
 	switch p {
-	case PhaseStarted, PhaseFinished, PhaseFailed:
+	case PhaseStarted, PhaseFinished, PhaseFailed, PhaseCleared:
 		return true
 	default:
 		return false

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,9 @@ import (
 	"github.com/leandronsp/githerb/internal/config"
 	"github.com/leandronsp/githerb/internal/review"
 )
+
+// ErrCheckKilled is a check that was stopped rather than answered.
+var ErrCheckKilled = errors.New("a check that was killed is not a check that failed")
 
 // Check runs what the repository declares against a proposal's head revision
 // and writes down what happened.
@@ -93,7 +97,16 @@ func (c Check) one(name review.CheckName, command string, head review.SHA) (revi
 	run.Stderr = os.Stderr
 
 	status := review.CheckPassed
+
 	if err := run.Run(); err != nil {
+		// A command that died on a signal was killed, by a Ctrl-C or a
+		// shutdown, and killing something is not a verdict on it. Recording it
+		// as failed would block the revision on an answer nobody gave.
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == -1 {
+			return review.Check{}, fmt.Errorf("%s was killed: %w", name, ErrCheckKilled)
+		}
+
 		status = review.CheckFailed
 	}
 

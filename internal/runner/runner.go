@@ -41,6 +41,10 @@ func (r Runner) Run(ctx context.Context) error {
 	ticker := time.NewTicker(r.every())
 	defer ticker.Stop()
 
+	if _, err := r.Recover(); err != nil {
+		r.say("%v", err)
+	}
+
 	for {
 		if _, err := r.Once(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			r.say("%v", err)
@@ -52,6 +56,36 @@ func (r Runner) Run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+// Recover hands back the claims of a runner that is gone. This one holds the
+// repository's lock, so anything still marked started was left by a process
+// that died: cleared, not failed, because the task was never tried to the end.
+func (r Runner) Recover() (int, error) {
+	proposals, err := r.Proposals.List()
+	if err != nil {
+		return 0, err
+	}
+
+	cleared := 0
+
+	for _, proposal := range proposals {
+		activity := proposal.Activity()
+		if proposal.State() != review.StateOpen || !activity.Working() {
+			continue
+		}
+
+		job := Job{ID: proposal.ID(), Task: activity.Task(), Why: "cleared"}
+		if err := r.report(job, review.PhaseCleared, "the runner that claimed this is gone"); err != nil {
+			return cleared, err
+		}
+
+		r.say("%s: %s was left claimed, handing it back", proposal.ID(), activity.Task())
+
+		cleared++
+	}
+
+	return cleared, nil
 }
 
 // Once takes one pass: it works out what is pending and does the first of it.

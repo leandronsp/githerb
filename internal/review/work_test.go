@@ -125,3 +125,28 @@ func TestADispatchWaitsUntilAnAgentPicksItUp(t *testing.T) {
 		t.Fatalf("a proposal an agent already picked up is still queued")
 	}
 }
+
+func TestAClaimNobodyIsHoldingIsNotWork(t *testing.T) {
+	t.Parallel()
+
+	// A runner killed mid-job leaves a started with no answer. Cleared is how
+	// the next one hands the proposal back without pretending it finished.
+	made := proposal(t)
+
+	for _, record := range []review.Work{
+		work(t, review.TaskCheck, review.PhaseStarted, "", 0),
+		work(t, review.TaskCheck, review.PhaseCleared, "the runner that claimed this is gone", time.Minute),
+	} {
+		next, err := made.WithRecord(review.WorkRecord(record))
+		if err != nil {
+			t.Fatalf("record: %v", err)
+		}
+
+		made = next
+	}
+
+	activity := made.Activity()
+	if !activity.Idle() || activity.Working() || activity.Failed() {
+		t.Fatalf("activity is %+v, want idle so the work can be picked up again", activity)
+	}
+}
