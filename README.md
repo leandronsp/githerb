@@ -63,8 +63,14 @@ review, over whatever host you already pay for.
 gate = "make check"        # runs in a worktree of the head revision
 
 [agent]
-command = "claude -p"      # gets the brief on stdin, the worktree as cwd
+command = "claude -p --permission-mode bypassPermissions"
 ```
+
+The agent gets the brief on stdin and a throwaway worktree as its working
+directory. It applies the notes and commits; whatever it leaves there is read
+back as the next revision. It is never asked to run githerb, and the worktree
+is why bypassing permissions is reasonable: nothing it does reaches the
+checkout you have open.
 
 ## Roadmap
 
