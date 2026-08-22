@@ -26,6 +26,15 @@ pub enum Error {
     NothingToApply,
     /// A rebase stopped on a conflict nobody resolved.
     ConflictsLeft,
+    /// The gate ran on the head revision and some of it said no.
+    ChecksFailed {
+        /// How many said no.
+        failed: usize,
+        /// How many ran.
+        total: usize,
+    },
+    /// A use case refused.
+    App(app::Error),
     /// git said no.
     Git(gitstore::Error),
     /// A file, a directory or a child process failed.
@@ -46,6 +55,10 @@ impl fmt::Display for Error {
             Self::NothingChanged => f.write_str("the agent left the worktree where it found it"),
             Self::NothingToApply => f.write_str("nothing is open on this revision"),
             Self::ConflictsLeft => f.write_str("the rebase is still conflicted"),
+            Self::ChecksFailed { failed, total } => {
+                write!(f, "{failed} of {total} checks failed")
+            }
+            Self::App(cause) => write!(f, "{cause}"),
             Self::Git(cause) => write!(f, "{cause}"),
             Self::Io(cause) => write!(f, "io error: {cause}"),
             Self::Review(cause) => write!(f, "{cause}"),
@@ -59,7 +72,9 @@ impl std::error::Error for Error {
             Self::Git(cause) => Some(cause),
             Self::Io(cause) => Some(cause),
             Self::Review(cause) => Some(cause),
-            Self::Busy
+            Self::App(cause) => Some(cause),
+            Self::ChecksFailed { .. }
+            | Self::Busy
             | Self::NoAgent
             | Self::AgentStopped(_)
             | Self::Stopped
@@ -79,6 +94,12 @@ impl From<gitstore::Error> for Error {
 impl From<io::Error> for Error {
     fn from(cause: io::Error) -> Self {
         Self::Io(cause)
+    }
+}
+
+impl From<app::Error> for Error {
+    fn from(cause: app::Error) -> Self {
+        Self::App(cause)
     }
 }
 
