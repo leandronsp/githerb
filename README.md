@@ -23,7 +23,53 @@ githerb land <proposal>
 ```
 
 `land` does not care which branch it lands on. Proposing onto another proposal's
-branch is how a stack is built before any of it reaches the trunk.
+branch is how a stack is built before any of it reaches the trunk, and landing
+the one underneath retargets the ones above it: the land is fast-forward only,
+so nothing is rewritten and no rebase is needed to follow.
+
+## The loop without you in it
+
+```bash
+githerb dispatch <proposal>   # or the button in the browser
+githerb run                   # a loop that answers what the log asks for
+```
+
+`run` reads the same records the browser reads and acts on them: notes handed
+over get applied, a proposal whose target ran ahead gets rebased, a head nobody
+checked gets checked. Each job runs in a throwaway worktree, so your own
+checkout is never touched, and each one is bracketed by two lines in the log.
+
+```toml
+# .githerb.toml
+[agent]
+command = "claude -p"
+```
+
+The brief arrives on stdin, the same text a person would have pasted, and the
+worktree is the working directory. githerb never learns what an agent is: the
+command comes from the repository the way a check command does. Whatever the
+agent commits becomes the next revision; a worktree that comes back unchanged is
+a failure with a reason.
+
+A rebase that conflicts is handed to the same agent, mid-rebase, in that
+worktree. If it walks away the rebase is aborted and the proposal says so, and a
+task that failed on a revision is never retried on that same revision.
+
+One runner per repository, one job at a time. An agent job is minutes of a
+machine and somebody's money, and two of them on one branch is how work gets
+lost.
+
+## Who is on it
+
+```
+$ githerb show <proposal>
+claude-code is applying since 14:03
+```
+
+Every task an agent takes writes `started`, then `finished` or `failed` with one
+line about why. What that adds up to is derived, the way the state of a proposal
+is, so there is no field anyone can leave stale. The browser carries the same
+sentence in a chip and the last eight lines in the panel.
 
 ## Where it all lives
 
@@ -109,7 +155,7 @@ fetched from a CDN, so it works on a plane.
 gate = "make check"
 ```
 
-`githerb check <proposal>` runs each command in a throwaway worktree of the head
+`githerb check <proposal>` (or `githerb run`) runs each command in a throwaway worktree of the head
 revision, not in your working tree, so the answer is about the code that would
 land rather than the code you happen to have open. The result is a record on the
 revision, and `land` refuses until every declared check has passed on the

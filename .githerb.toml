@@ -2,3 +2,8 @@
 # throwaway worktree of the head revision, not in your working tree.
 [checks]
 gate = "make check"
+
+# What answers a handover. The brief arrives on stdin and the working directory
+# is a throwaway worktree of the revision under review.
+# [agent]
+# command = "claude -p"

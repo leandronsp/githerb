@@ -74,6 +74,27 @@ Write the failing test, make it pass, then break the line it protects and
 confirm that exact test fails. A test that survives the mutation was not testing
 anything.
 
+### The log is the only state, and it says who is working
+
+An agent brackets its work with two lines in the annotation log: started, then
+finished or failed with one line about why. Activity, staleness, whether
+somebody is already on a proposal: all of it is derived by folding the log,
+never a field anyone writes twice. If you find yourself wanting a status column,
+you want a record.
+
+A kind this build does not know is skipped, not fatal. That is what makes the
+format extensible: the day a newer binary writes a new kind, every older one
+still opens the proposal.
+
+### The runner owns nothing
+
+`internal/runner` derives jobs from the same records the browser reads, claims
+one by writing that it started, and runs the repository's command in a
+throwaway worktree. It never decides what a proposal means, never edits your
+checkout, and never retries a task that already failed on that revision. One
+runner per repository, enforced by a lock in the git directory; one job at a
+time, because an agent job costs money.
+
 ## Rules files
 
 Mandatory reading before writing code, under `.claude/rules/`:
