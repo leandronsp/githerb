@@ -281,3 +281,64 @@ func reset(t *testing.T, r gitstore.Repo, to review.SHA) {
 		t.Fatalf("reset: %v: %s", err, out)
 	}
 }
+
+// note appends a raw line, the way a newer binary writing a kind this one has
+// never heard of would.
+func note(t *testing.T, r gitstore.Repo, ref string, revision review.SHA, line string) {
+	t.Helper()
+
+	cmd := exec.Command("git", "notes", "--ref="+ref, "append", "--no-separator", "-m", line, string(revision))
+	cmd.Dir = r.Dir()
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("note: %v: %s", err, out)
+	}
+}
+
+func TestARecordFromTheFutureIsSkippedRatherThanFatal(t *testing.T) {
+	t.Parallel()
+
+	r, store := repo(t)
+
+	base, err := r.Resolve("HEAD")
+	if err != nil {
+		t.Fatalf("base: %v", err)
+	}
+
+	head := commit(t, r, "the work")
+	openProposal(t, store, base, head)
+
+	note(t, r, "githerb/annotations", head,
+		`{"v":1,"kind":"telepathy","author":"someone","at":"2026-08-21T18:04:05Z"}`)
+	note(t, r, "githerb/proposals", head,
+		`{"v":1,"kind":"summoned","id":"gate","author":"someone","at":"2026-08-21T18:04:05Z"}`)
+
+	comment, err := review.NewComment(head, "a.txt", span(t), "still readable", "leandro", clock())
+	if err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+
+	if err := store.Annotate(head, review.CommentRecord(comment)); err != nil {
+		t.Fatalf("annotate: %v", err)
+	}
+
+	got, err := store.Load("gate")
+	if err != nil {
+		t.Fatalf("a kind this binary does not know took the proposal down: %v", err)
+	}
+
+	if len(got.Open()) != 1 {
+		t.Fatalf("the readable records add up to %d open notes, want 1", len(got.Open()))
+	}
+}
+
+func span(t *testing.T) review.Span {
+	t.Helper()
+
+	made, err := review.NewSpan(review.SideNew, 1, 1)
+	if err != nil {
+		t.Fatalf("span: %v", err)
+	}
+
+	return made
+}

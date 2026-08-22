@@ -317,6 +317,15 @@ func (s Store) eventsOn(revision review.SHA) ([]review.Event, error) {
 
 	for _, line := range raw {
 		event, err := review.ParseEvent([]byte(line))
+
+		// A kind this build has never heard of came from a newer one. Skipping
+		// it is what makes the format extensible: the alternative is that the
+		// day anyone writes a new kind, every older binary stops opening the
+		// proposal entirely.
+		if errors.Is(err, review.ErrUnknownKind) {
+			continue
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("proposal log: %w", err)
 		}
@@ -337,6 +346,13 @@ func (s Store) recordsOn(revision review.SHA) ([]review.Record, error) {
 
 	for _, line := range raw {
 		record, err := review.ParseLine([]byte(line))
+
+		// Same as the event log: an unknown kind is a newer binary talking, not
+		// a broken repository.
+		if errors.Is(err, review.ErrUnknownKind) {
+			continue
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("annotation log: %w", err)
 		}
