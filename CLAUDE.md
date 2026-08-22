@@ -21,20 +21,23 @@ Everything here is non-negotiable. Everything else is a preference.
 `make` lists the targets. Nothing in this repository is invoked another way, and
 a command worth typing twice becomes a target.
 
-`make check` is the gate: format, vet, lint, tests. Run it when a change set is
-done and fix whatever it raises. Never commit with it red.
+`make check` is the gate: format, clippy with warnings as errors, tests. Run it
+when a change set is done and fix whatever it raises. Never commit with it red.
 
 ### The core does no I/O
 
-`internal/review` imports nothing that touches a disk, a network or a clock. A
-timestamp is a parameter. When a test there starts wanting a git repository, the
-boundary leaked and the fix is in the source.
+`crates/review` imports nothing that touches a disk, a network or a clock. A
+timestamp is a parameter. Its `clippy.toml` disallows the types that would, so
+when a test there starts wanting a git repository, the boundary leaked and the
+fix is in the source.
 
 ### Git is the database, and the git binary is the client
 
-Storage is refs, notes and objects. The adapter shells out to `git`, because git
-is the one program guaranteed to agree with git. No library reimplementation
-until something forces it.
+Storage is refs, notes and objects. `crates/gitstore` shells out to `git`,
+because git is the one program guaranteed to agree with git. No library
+reimplementation until something forces it. Reading every proposal costs three
+git processes, not one per revision; see the performance rules in
+`.claude/rules/architecture.md`.
 
 ### The log is append-only
 
@@ -50,9 +53,12 @@ tooling. Golden files guard it.
 
 ### Typing discipline is enforced, not encouraged
 
-Named types over primitives, unexported fields with a validating constructor,
-closed sets as named types with an exhaustive switch. The full rules are in
-`.claude/rules/typing.md` and `.golangci.yml` fails the build on each one.
+Named types over primitives, private fields with a validating constructor,
+closed sets as enums with an exhaustive match, one error enum per crate. The
+full rules are in `.claude/rules/typing.md`, and the workspace lints in
+`Cargo.toml` fail the build on each one: clippy pedantic, `unwrap`/`expect`/
+`panic` denied in library code, wildcard arms on our enums denied, `unsafe`
+forbidden.
 
 ### The format refuses prolixity
 
@@ -63,10 +69,11 @@ constructor is a rule. When a field feels too small, the sentence is too long.
 
 ### The browser holds nothing but the selection
 
-The server renders HTML and pushes fragments over an event stream. The client
-is one file, it knows which lines are selected and nothing else, and it fetches
-nothing from a CDN. A page that disagrees with the repository is a bug in the
-stream, never a second copy of the state.
+The server renders HTML and pushes fragments over an event stream: the bar, the
+rail, the thread rows, never the diff. The client is one file, it knows which
+lines are selected and which theme you picked, and it fetches nothing from a
+CDN. A page that disagrees with the repository is a bug in the stream, never a
+second copy of the state.
 
 ### TDD, and green is not the end
 
@@ -88,7 +95,7 @@ still opens the proposal.
 
 ### The runner owns nothing
 
-`internal/runner` derives jobs from the same records the browser reads, claims
+`crates/runner` derives jobs from the same records the browser reads, claims
 one by writing that it started, and runs the repository's command in a
 throwaway worktree. It never decides what a proposal means, never edits your
 checkout, and never retries a task that already failed on that revision. One
@@ -100,8 +107,8 @@ time, because an agent job costs money.
 Mandatory reading before writing code, under `.claude/rules/`:
 
 - `typing.md` — what the compiler will not give you and how to buy it back
-- `architecture.md` — what each package is allowed to know
-- `testing.md` — TDD and the Go testing mechanics
+- `architecture.md` — what each crate is allowed to know, and the performance rules
+- `testing.md` — TDD and the Rust testing mechanics
 
 ## Commits
 
