@@ -42,7 +42,7 @@ click() { agent-browser eval "(() => { const e = document.querySelector($(jsq "$
 # other diff, so the smoke presses the new-side number cell of that line.
 gutter() {
   agent-browser eval "(() => {
-    const section = document.querySelector('section.file[data-path=' + $(jsq "$1") + ']');
+    const section = document.querySelector('section.file[data-path=\"' + $(jsq "$1") + '\"]');
     if (!section) return 'missing';
     const cell = [...section.querySelectorAll('td.n')].find(td => td.textContent.trim() === '$2');
     if (!cell) return 'missing';
@@ -169,7 +169,9 @@ do_handover() {
   click '[data-dispatch]' false || return 1
   cd "$WORK" || return 1
   for _ in $(seq 1 10); do
-    "$BIN" show "$ID" | grep -q "waiting for an agent" && return 0
+    # The runner alongside may already have claimed the handover; either way the
+    # ask is in the log and the agent line says so.
+    "$BIN" show "$ID" | grep -Eq "waiting for an agent|is apply|apply failed" && return 0
     sleep 0.4
   done
   return 1
@@ -178,13 +180,13 @@ do_handover() {
 # The reactive proof: the browser is not touched, somebody answers from the
 # terminal, and the rail has to move on its own.
 do_live_update() {
-  [ "$(js 'document.querySelectorAll("#rail ul.threads > li").length')" = "1" ] || return 1
+  [ "$(js 'document.querySelectorAll("#rail ul.threads:not(.done) > li").length')" = "1" ] || return 1
   cd "$WORK" || return 1
   local comment
   comment=$("$BIN" comments "$ID" | awk '{print $1}')
   [ -n "$comment" ] || return 1
   GITHERB_AUTHOR=claude-code "$BIN" resolve "$ID" "$comment" || return 1
-  until_js 'document.querySelectorAll("#rail ul.threads > li").length === 0'
+  until_js 'document.querySelectorAll("#rail ul.threads:not(.done) > li").length === 0'
 }
 
 # A new revision moves the lines, so the page comes back whole and says so.
