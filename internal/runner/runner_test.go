@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -396,5 +397,57 @@ func TestAnAgentAnswersInWordsWithoutTouchingCode(t *testing.T) {
 
 	if len(after.Open()) != 1 {
 		t.Fatalf("the note stopped being open because it was answered, and answering is not resolving")
+	}
+}
+
+func TestAnAgentThatChangesCodeAndSaysNothingIsSpokenFor(t *testing.T) {
+	t.Parallel()
+
+	k := setup(t)
+
+	git(t, k.dir, "checkout", "-q", "-b", "work")
+	write(t, k.dir, "a.txt", "one\nTWO\n")
+	git(t, k.dir, "commit", "-qam", "the work")
+
+	proposal := k.propose(t, "The work", "main")
+
+	annotate := app.Annotate{
+		Proposals: k.proposals, Author: "leandro",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	note, err := annotate.Run(string(proposal.ID()), "a.txt", "new", 2, 2, "name it properly")
+	if err != nil {
+		t.Fatalf("annotate: %v", err)
+	}
+
+	dispatch := app.Dispatch{
+		Proposals: k.proposals, Author: "leandro",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	if _, err := dispatch.Run(string(proposal.ID())); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+
+	// The silent kind: it commits and writes nothing to the answers file.
+	mute := "printf 'one\\nNAMED\\n' > a.txt && git add -A && git commit -qm 'name the second line'"
+
+	if _, err := k.loop(mute).Once(context.Background()); err != nil {
+		t.Fatalf("once: %v", err)
+	}
+
+	after, err := k.proposals.Load(proposal.ID())
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	answers := after.Answers(note.ID())
+	if len(answers) != 1 {
+		t.Fatalf("the thread carries %d answers, want the runner speaking once for the agent", len(answers))
+	}
+
+	if !strings.Contains(answers[0].Body(), "name the second line") {
+		t.Fatalf("the answer is %q, and it should name the commit that came out of asking", answers[0].Body())
 	}
 }

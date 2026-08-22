@@ -244,12 +244,50 @@ func (r Runner) apply(ctx context.Context, proposal review.Proposal) (string, er
 		return fmt.Sprintf("answered %d, no code changed", said), nil
 	}
 
+	// An agent that changed the code and said nothing leaves the person who
+	// asked staring at a revision with no explanation. The runner knows what
+	// was committed, so it says that much on every note nobody answered.
+	said += r.vouch(ctx, proposal, where, moved)
+
 	next, err := r.record(proposal, moved)
 	if err != nil {
 		return "", err
 	}
 
 	return fmt.Sprintf("revision %d at %s, answered %d", next.Head().Number(), short(moved), said), nil
+}
+
+// vouch answers, on the runner's own authority, every note the agent left in
+// silence. What it can say is small and true: here is the commit that came out
+// of asking.
+func (r Runner) vouch(ctx context.Context, proposal review.Proposal, where tree, moved review.SHA) int {
+	subject, err := where.git(ctx, "log", "-1", "--format=%s", string(moved))
+	if err != nil {
+		return 0
+	}
+
+	fresh, err := r.Proposals.Load(proposal.ID())
+	if err != nil {
+		return 0
+	}
+
+	use := app.Reply{Proposals: r.Proposals, Author: r.Author, Now: r.Now}
+	said := 0
+
+	for _, note := range proposal.Open() {
+		if len(fresh.Answers(note.ID())) > len(proposal.Answers(note.ID())) {
+			continue
+		}
+
+		body := fmt.Sprintf("left %s: %s", short(moved), firstLine(subject))
+		if _, err := use.Run(string(proposal.ID()), string(note.ID()), body); err != nil {
+			continue
+		}
+
+		said++
+	}
+
+	return said
 }
 
 // record files the commit an agent left as the next revision.

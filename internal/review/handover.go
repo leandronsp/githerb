@@ -19,13 +19,14 @@ func (p Proposal) Handover() string {
 // revision itself. An agent told to record it too records it first, and then
 // the runner is the one that looks like it failed.
 func (p Proposal) Brief() string {
-	return p.decisions() + p.brief(false,
-		"Answer every note above. A note asking for a change is answered by making it\n"+
-			"here and committing; a note asking a question is answered in words. Usually both.\n\n"+
-			"Say it back: append one JSON object per line to the file named by $GITHERB_ANSWERS,\n"+
-			`{"note": "<the id in brackets>", "say": "one line, plain, no markdown"}`+"\n\n"+
+	return "Answer every note below, in words, by running this once per note:\n\n" +
+		`  printf '%s\n' '{"note":"<id>","say":"<one line, plain, no markdown>"}' >> "$GITHERB_ANSWERS"` +
+		"\n\nThat is the only way anything you say reaches the person who asked. A note you\n" +
+		"answered by changing code still gets a line saying what you changed.\n\n" +
+		p.decisions() + p.brief(false,
+		"Then, for the notes that asked for a change, make it here and commit.\n"+
 			"Do not push, do not rebase, and do not run githerb: the commit you leave here\n"+
-			"is read back as the next revision, and what you write there is said in the thread.\n")
+			"is read back as the next revision.\n")
 }
 
 // decisions is what the proposal already settled. The agent answering the
