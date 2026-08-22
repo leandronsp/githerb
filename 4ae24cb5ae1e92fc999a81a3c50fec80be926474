@@ -2,3 +2,4 @@
 {"v":1,"kind":"chunk","id":"","file":"LICENSE","side":"new","start":1,"end":1,"title":"AGPL-3.0 or later","surface":"LICENSE","before":"no licence at all, which means nobody may use it","after":"the AGPL, verbatim from the FSF text","decision":"copyleft that reaches across a network, so a hosted fork stays open","rejected":"MIT, which lets a host close the loop this tool is built to keep open","author":"","at":""}
 {"v":1,"kind":"work","id":"","rev":"4ae24cb5ae1e92fc999a81a3c50fec80be926474","task":"check","phase":"started","author":"claude-code","at":"2026-08-22T03:41:08Z"}
 {"v":1,"kind":"check","id":"","rev":"4ae24cb5ae1e92fc999a81a3c50fec80be926474","name":"gate","status":"passed","seconds":9,"author":"claude-code","at":"2026-08-22T03:41:18Z"}
+{"v":1,"kind":"work","id":"","rev":"4ae24cb5ae1e92fc999a81a3c50fec80be926474","body":"1 checks passed","task":"check","phase":"finished","author":"claude-code","at":"2026-08-22T03:41:18Z"}
