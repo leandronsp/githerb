@@ -24,6 +24,17 @@ type Config struct {
 	// Checks are commands that must pass on the head revision before it lands,
 	// keyed by the name the record carries.
 	Checks map[string]string `toml:"checks"`
+
+	// Agent is the command that answers a handover. It is declared here for the
+	// same reason a check is: githerb runs what the repository asks for and
+	// never learns what any of it is.
+	Agent Agent `toml:"agent"`
+}
+
+// Agent is how this repository runs an agent.
+type Agent struct {
+	// Command reads the brief on stdin and works in the directory it is given.
+	Command string `toml:"command"`
 }
 
 // Load reads the configuration, or returns an empty one when there is none. A
@@ -35,7 +46,7 @@ func Load(root string) (Config, error) {
 	//nolint:gosec // G304: see above
 	raw, err := os.ReadFile(filepath.Join(root, File))
 	if errors.Is(err, os.ErrNotExist) {
-		return Config{Checks: map[string]string{}}, nil
+		return Config{Checks: map[string]string{}, Agent: Agent{Command: ""}}, nil
 	}
 
 	if err != nil {

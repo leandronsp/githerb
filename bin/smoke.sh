@@ -143,8 +143,18 @@ do_handover() {
   curl -sf "$WEB/p/$ID/handover" | grep -q "these two want a name" || return 1
 
   click '[data-handover]' false || return 1
-  sleep 1.5
-  js 'document.querySelector(".said").innerText' | grep -q "Handed over" || return 1
+
+  # The page says it back in a line that fades, so poll for it rather than
+  # guessing how long a first paint takes.
+  local said=1
+  for _ in $(seq 1 10); do
+    if js 'document.querySelector(".said").innerText' | grep -q "Handed over"; then
+      said=0
+      break
+    fi
+    sleep 0.4
+  done
+  [ "$said" -eq 0 ] || return 1
 
   # The click also has to leave the ask in the log, which is what an agent
   # watching the repository acts on.
@@ -211,12 +221,52 @@ do_streams() {
   [ "$held" -le 3 ]
 }
 
+# The other half of the product: a note handed over, an agent answering it in a
+# worktree, and the page saying so without being touched.
+do_agent() {
+  cd "$WORK" || return 1
+
+  cat > .githerb.toml <<'TOML'
+[agent]
+command = "cat > brief.txt && printf 'one\nTWO_BY_AGENT\ntwo and a half\nthree\nfour\n' > a.txt && git add -A && git commit -qm 'the agent answered'"
+TOML
+
+  "$BIN" comment "$ID" --file a.txt --line 2 --body "the agent should name this" >/dev/null || return 1
+  "$BIN" dispatch "$ID" >/dev/null || return 1
+
+  local before after
+  before=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
+
+  "$BIN" run --once >"$WORK/run.log" 2>&1 || return 1
+  grep -q "apply done" "$WORK/run.log" || return 1
+
+  after=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
+  [ "$after" -gt "$before" ] || return 1
+
+  # The agent works in its own worktree, so the checkout here never moved.
+  grep -q TWO_NAMED a.txt || return 1
+
+  for _ in $(seq 1 20); do
+    if [ "$(js "document.querySelector(\"#bar .meta\").innerText.includes(\"revision $after\")")" = "true" ]; then
+      js 'document.querySelector(".agent").innerText' | grep -q "no agent on it"
+      return $?
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
 do_land_from_browser() {
   [ "$(js 'document.querySelector(".land").disabled')" = "false" ] || return 1
   click '.land' false || return 1
   sleep 1.5
+
+  # The head is whatever the last revision points at, which after an agent has
+  # been through it is a commit no branch here carries.
   cd "$WORK" || return 1
-  [ "$(git rev-parse main)" = "$(git rev-parse work)" ]
+  local head
+  head=$("$BIN" show "$ID" | awk '/^  r/ {sha=$2} END {print sha}')
+  [ "$(git rev-parse --short main)" = "$head" ]
 }
 
 command -v agent-browser >/dev/null || { echo "smoke needs agent-browser on PATH"; exit 1; }
@@ -238,6 +288,7 @@ step "the board sizes each one"    ""  do_board
 step "hand the review over"        ""  do_handover
 step "the panel moves on its own"  ""  do_live_update
 step "a new revision redraws it"   ""  do_new_revision
+step "an agent answers a handover" ""  do_agent
 step "clicking around stays fast"  ""  do_streams
 step "land from the browser"       ""  do_land_from_browser
 

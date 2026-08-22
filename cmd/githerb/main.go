@@ -44,6 +44,7 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb check <proposal>
   githerb land <proposal>
   githerb abandon <proposal>
+  githerb run [--once] [--every 2s]    do what the log asks for, in a worktree
   githerb review [proposal]            open the review surface in a browser
   githerb version
 
@@ -90,6 +91,8 @@ func run(args []string) error {
 		return abandon(rest)
 	case "land":
 		return land(rest)
+	case "run":
+		return runLoop(rest)
 	case "review":
 		return reviewSurface(rest)
 	case "version":
