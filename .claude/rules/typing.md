@@ -1,110 +1,86 @@
----
-description: Typing discipline
-globs: ["**/*.go"]
----
-
 # Typing discipline
 
-Go's compiler gives less than Elixir's inference and far less than Rust's
-algebraic types. It will not tell you that a switch missed a case, it will hand
-you a zero value for any struct, and it thinks every string is every other
-string. So the discipline has to manufacture what the compiler will not, and
-every rule here is backed by a linter that fails the build.
+Rust gives more than Go did, and still not everything. The compiler will not
+stop a `String` from being passed where a sha was meant, will happily let a
+struct literal build an invalid value, and `unwrap` turns a bad input into a
+crash. So the discipline buys back what the compiler does not give, and every
+rule here is backed by a lint that fails the build (`make lint` is
+`cargo clippy --workspace --all-targets -- -D warnings` with pedantic on).
 
 Three techniques carry most of the weight.
 
 ## 1. Named types, never bare primitives
 
-A `string` parameter accepts every other string in the program. Give the domain
+A `&str` parameter accepts every other string in the program. Give the domain
 value its own type and the compiler starts helping.
 
-```go
-type SHA string      // a commit, 40 hex characters
-type File string     // a path inside the repository
-type Login string    // an account handle
+```rust
+pub struct Sha(String);        // a commit, 40 hex characters
+pub struct FilePath(String);   // a path inside the repository
+pub struct Author(String);     // who wrote a record
 ```
 
-`Repository(sha SHA, file File)` cannot be called with the arguments swapped.
-`Repository(a, b string)` can, and will be, eventually.
+`comment(sha: &Sha, file: &FilePath)` cannot be called with the arguments
+swapped. `comment(a: &str, b: &str)` can, and will be, eventually.
 
 The rule: if two values of the same underlying type mean different things,
 they get different types. No exceptions for "it is obviously a string".
 
 ## 2. Illegal states unconstructible
 
-Go hands out the zero value of any struct to anyone who writes `var x T`. The
-only way to stop an invalid value existing is to make the fields unexported and
-the constructor the only door.
+Fields are private and the constructor is the only door.
 
-```go
-type Range struct {
-    side  Side
-    start int
-    end   int
+```rust
+pub struct Span { side: Side, start: u32, end: u32 }
+
+impl Span {
+    pub fn new(side: Side, start: u32, end: u32) -> Result<Self, Error> {
+        // validate here, once, and nothing downstream ever checks again
+    }
+    pub fn start(&self) -> u32 { self.start }
 }
-
-func NewRange(side Side, start, end int) (Range, error) {
-    // validate here, once, and nothing downstream ever checks again
-}
-
-func (r Range) Start() int { return r.start }
 ```
 
-Exported fields are for data that crosses a wire and has already been
-validated, never for a domain value with rules. `exhaustruct` runs over the
-domain package so a struct literal there cannot silently omit a field.
+Public fields are for data that crosses a wire and has already been validated
+(the serde line structs), never for a domain value with rules. `Option<T>` says
+optional; an empty string or a zero never does.
 
-## 3. Closed sets are named types with an exhaustive switch
+## 3. Closed sets are enums with an exhaustive match
 
-Go has no enums. `iota` constants are just integers and accept any integer.
-
-```go
-type Side string
-
-const (
-    SideOld Side = "old"
-    SideNew Side = "new"
-)
-
-func ParseSide(raw string) (Side, error) { ... }
+```rust
+pub enum Side { Old, New }
 ```
 
-Every switch on a closed type is checked by `exhaustive`, so adding a third
-side breaks the build at every place that has to care. That is the guarantee
-Rust gives for free and it is worth a linter to buy it.
-
-Parse at the boundary, once. `ParseSide` lives where untrusted input arrives;
-nothing inside re-checks.
+Every `match` on our own enums lists every variant. `clippy::wildcard_enum_match_arm`
+is denied, so adding a third side breaks the build at every place that has to
+care. Parse at the boundary, once (`Side::parse`); nothing inside re-checks.
 
 ## Errors
 
 Errors are values, and a value with no type is a string in disguise.
 
-- Sentinel errors per package, compared with `errors.Is`, never with `==` and
-  never by matching on the message.
-- Structured failures get a type and `errors.As`.
-- Wrap with `%w` and add what the caller does not already know. `wrapcheck`
-  fails a bare error returned from another package.
-- `err113` forbids `errors.New` at the call site: define it once as a package
-  sentinel so callers can match it.
-- Never `return nil, nil`. `nilnil` fails it. Absence is either an error or a
-  documented zero value, and you have to say which.
+- One `Error` enum per crate, hand-rolled: `Display` (lowercase, no trailing
+  punctuation, carrying the offending value), `std::error::Error`, `From` at
+  the crate boundary. No `thiserror`, no `anyhow`, no `Box<dyn Error>` as an
+  error type.
+- Callers match on variants, never on the message.
+- `unwrap`, `expect` and `panic!` are denied in library code. A bad input is a
+  `Result`; a broken invariant is still a `Result` with a variant that says so.
+  Tests may unwrap.
+- Never swallow: an error either propagates or is handled where the handling
+  means something, and a handler that ignores one says why in a comment.
 
 ## Interfaces
 
-- Accept interfaces, return concrete types. `ireturn` fails a function that
-  returns an interface.
-- Define the interface where it is consumed, not where it is implemented. The
-  domain declares the port it needs; the adapter simply happens to satisfy it.
-- An interface with one implementation and no test double is not an
-  abstraction, it is indirection. Delete it.
+- Accept `&T`/`&str`/`impl AsRef<..>`, return concrete types.
+- A trait with one implementation and no test double is not an abstraction,
+  it is indirection. Delete it.
 
 ## Banned outright
 
-- `any` and `interface{}` outside the decode boundary, where the payload
-  genuinely has no shape yet.
-- Naked type assertions. `forcetypeassert` fails `x.(T)`; use the two-value
-  form and handle the failure.
-- `panic` in library code. Panic is for a broken program, not a bad input.
-- Pointer fields to mean optional. A pointer means shared or large, never
-  maybe. If a value is optional, say so with a type that carries the answer.
+- `unsafe` (forbidden at the workspace level).
+- `_ =>` on our own enums.
+- `as` casts that can truncate; use `u32::try_from` and say what happens.
+- `.clone()` to silence the borrow checker; borrow, or restructure.
+- Boolean parameters; two call sites reading `f(true)` want an enum.
+- `todo!`, `unimplemented!`, `dbg!` in committed code.
