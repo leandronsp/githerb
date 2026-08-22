@@ -1,3 +1,5 @@
+  # A fresh slate: the preferences a previous run left in this origin.
+  agent-browser eval "localStorage.removeItem('githerb:theme'); localStorage.removeItem('githerb:density'); delete document.documentElement.dataset.theme; delete document.documentElement.dataset.density; 'clean'" >/dev/null 2>&1
 #!/usr/bin/env bash
 # The whole product against a real repository: propose from the terminal,
 # annotate in a browser, watch the page move when an agent answers from the
@@ -110,6 +112,8 @@ do_serve() {
 do_open() {
   agent-browser cookies clear >/dev/null 2>&1
   agent-browser open "$WEB/p/$ID" >/dev/null 2>&1 || return 1
+  # A fresh slate: the preferences a previous run left in this origin.
+  agent-browser eval "localStorage.removeItem('githerb:theme'); localStorage.removeItem('githerb:density'); delete document.documentElement.dataset.theme; delete document.documentElement.dataset.density; 'clean'" >/dev/null 2>&1
   until_js 'document.querySelectorAll("#diff tr[id^=\"L-\"]").length > 0' 10
 }
 
@@ -168,6 +172,32 @@ do_theme_stays() {
   click '#rail .files a' false || return 1
   sleep 0.3
   [ "$(js 'document.documentElement.dataset.theme')" = "light" ]
+}
+
+# Nothing on the page is set below twelve pixels: a day of reading is the job.
+do_readable() {
+  local small
+  small=$(agent-browser eval "(() => {
+    const probe = ['body', '#bar h1', '#bar button', '#bar .checks li', '#bar .agent', '#rail h2', '#rail .files a', '#rail .threads li', '#diff .file-head', '#diff tr.hunk td', '#diff td.c', '#diff td.n', '.thread .body', '.thread .who', '.thread button'];
+    return probe.map(sel => { const e = document.querySelector(sel); if (!e) return null; const px = parseFloat(getComputedStyle(e).fontSize); return px < 12 ? sel + '=' + px : null; }).filter(Boolean).join(' ');
+  })()" 2>/dev/null | tr -d '"')
+  [ -z "$small" ] || { echo "under 12px: $small"; return 1; }
+  small=$(js "parseFloat(getComputedStyle(document.querySelector('#diff td.c')).fontSize) >= 14")
+  [ "$small" = "true" ]
+}
+
+# Density is a preference like the theme: one click tightens, one click undoes,
+# and the page never drops under twelve pixels either way.
+do_density() {
+  agent-browser eval "localStorage.removeItem('githerb:density'); delete document.documentElement.dataset.density; 'reset'" >/dev/null 2>&1
+  click 'button[data-density]' false || return 1
+  sleep 0.2
+  [ "$(js 'document.documentElement.dataset.density')" = "compact" ] || return 1
+  [ "$(js "parseFloat(getComputedStyle(document.querySelector('#diff td.c')).fontSize)")" = "13" ] || return 1
+  click 'button[data-density]' false || return 1
+  sleep 0.2
+  [ "$(js 'String(document.documentElement.dataset.density)')" = "undefined" ] || return 1
+  [ "$(js "parseFloat(getComputedStyle(document.querySelector('#diff td.c')).fontSize)")" = "14" ]
 }
 
 # The board says how big a proposal is before anyone opens it.
@@ -286,6 +316,8 @@ step "a note is a thread"          ""  do_thread
 step "landing is blocked"          ""  do_land_blocked
 step "the bar counts the diff"     ""  do_counts
 step "a file folds away"           ""  do_fold
+step "the type is readable"          ""  do_readable
+step "density is a preference"      ""  do_density
 step "the theme stays put"          ""  do_theme_stays
 step "the board sizes each one"    ""  do_board
 step "hand the review over"        ""  do_handover

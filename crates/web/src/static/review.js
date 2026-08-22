@@ -41,6 +41,20 @@
     return false;
   };
 
+  // Density is the other preference the browser keeps: compact for a wide
+  // screen and a long session, comfortable otherwise.
+  const density = () => {
+    const root = document.documentElement;
+    if (root.dataset.density === "compact") delete root.dataset.density;
+    else root.dataset.density = "compact";
+    try {
+      if (root.dataset.density) localStorage.setItem("githerb:density", root.dataset.density);
+      else localStorage.removeItem("githerb:density");
+    } catch (e) {
+      /* a browser that refuses storage still gets the density for this page */
+    }
+  };
+
   const theme = () => {
     const root = document.documentElement;
     const dark = root.dataset.theme
@@ -259,6 +273,7 @@
     // The root element carries data-theme too once a theme is fixed, so the
     // hit test names the button: a click anywhere else must not toggle it.
     if (target.closest("button[data-theme]")) return theme();
+    if (target.closest("button[data-density]")) return density();
 
     const fold = target.closest(".fold");
     if (fold) {

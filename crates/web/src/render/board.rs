@@ -21,7 +21,8 @@ pub fn board_page(rows: &Board) -> Markup {
                     h1 { "proposals" }
                 }
                 div class="actions" {
-                    button data-theme title="light or dark" { "theme" }
+                    button data-density title="comfortable or compact" { "density" }
+                button data-theme title="light or dark" { "theme" }
                 }
             }
             (board(rows))

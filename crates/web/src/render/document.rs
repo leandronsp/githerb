@@ -13,7 +13,7 @@ use crate::model::Page;
 use crate::render::{bar, diff, rail};
 
 /// Applied before the first paint, so the page never flashes the wrong theme.
-const THEME: &str = r#"try{var t=localStorage.getItem("githerb:theme");if(t)document.documentElement.dataset.theme=t}catch(e){}"#;
+const THEME: &str = r#"try{var r=document.documentElement,t=localStorage.getItem("githerb:theme"),d=localStorage.getItem("githerb:density");if(t)r.dataset.theme=t;if(d)r.dataset.density=d}catch(e){}"#;
 
 /// The whole review page.
 #[must_use]
@@ -150,6 +150,16 @@ mod tests {
         );
         assert!(
             html.contains("localStorage.getItem(\"githerb:theme\")"),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn the_density_is_a_preference_kept_next_to_the_theme() {
+        let html = rendered();
+        assert!(html.contains("<button data-density"), "{html}");
+        assert!(
+            html.contains("localStorage.getItem(\"githerb:density\")"),
             "{html}"
         );
     }

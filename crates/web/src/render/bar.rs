@@ -51,6 +51,7 @@ pub fn bar(page: &Page) -> Markup {
                     State::Abandoned => span class="closed" { "abandoned" },
                 }
                 a href={ "/p/" (page.id()) "/handover" } data-handover { "copy handover" }
+                button data-density title="comfortable or compact" { "density" }
                 button data-theme title="light or dark" { "theme" }
             }
         }
