@@ -7,6 +7,10 @@ license.workspace = true
 publish = false
 
 [dependencies]
+app = { workspace = true }
+review = { workspace = true }
+gitstore = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

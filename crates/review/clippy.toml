@@ -1,0 +1,15 @@
+# The core does no I/O. A timestamp is a parameter; the adapter shells out.
+disallowed-types = [
+  { path = "std::process::Command", reason = "the core does no I/O; shell out from gitstore" },
+  { path = "std::fs::File", reason = "the core does no I/O" },
+  { path = "std::net::TcpStream", reason = "the core does no I/O" },
+  { path = "std::net::TcpListener", reason = "the core does no I/O" },
+]
+disallowed-methods = [
+  { path = "std::time::SystemTime::now", reason = "a timestamp is a parameter in the core" },
+  { path = "std::time::Instant::now", reason = "the core does not read the clock" },
+  { path = "std::fs::read", reason = "the core does no I/O" },
+  { path = "std::fs::read_to_string", reason = "the core does no I/O" },
+  { path = "std::fs::write", reason = "the core does no I/O" },
+  { path = "std::env::var", reason = "the core does not read the environment" },
+]
