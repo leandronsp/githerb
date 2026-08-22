@@ -74,7 +74,7 @@ func TestTheWholeLoop(t *testing.T) {
 		t.Fatalf("annotate: %v", err)
 	}
 
-	land := app.Land{Proposals: k.proposals, Author: "leandro", Now: clock}
+	land := app.Land{Proposals: k.proposals, Git: k.git, Author: "leandro", Now: clock}
 
 	if _, err := land.Run(string(proposal.ID())); !errors.Is(err, review.ErrOpenComments) {
 		t.Fatalf("landed with an open comment: %v", err)
@@ -104,8 +104,8 @@ func TestTheWholeLoop(t *testing.T) {
 		t.Fatalf("land: %v", err)
 	}
 
-	if landed.State() != review.StateLanded {
-		t.Fatalf("state is %q, want landed", landed.State())
+	if landed.Proposal.State() != review.StateLanded {
+		t.Fatalf("state is %q, want landed", landed.Proposal.State())
 	}
 
 	tip, err := k.git.HeadOf("main")
@@ -113,8 +113,8 @@ func TestTheWholeLoop(t *testing.T) {
 		t.Fatalf("head: %v", err)
 	}
 
-	if tip != landed.Head().SHA() {
-		t.Fatalf("main is at %s, want %s", tip, landed.Head().SHA())
+	if tip != landed.Proposal.Head().SHA() {
+		t.Fatalf("main is at %s, want %s", tip, landed.Proposal.Head().SHA())
 	}
 }
 
@@ -151,8 +151,8 @@ func TestLandingOntoABranchThatIsNotTheTrunk(t *testing.T) {
 		t.Fatalf("head: %v", err)
 	}
 
-	if tip != landed.Head().SHA() {
-		t.Fatalf("feature is at %s, want %s", tip, landed.Head().SHA())
+	if tip != landed.Proposal.Head().SHA() {
+		t.Fatalf("feature is at %s, want %s", tip, landed.Proposal.Head().SHA())
 	}
 
 	trunk, err := k.git.HeadOf("main")

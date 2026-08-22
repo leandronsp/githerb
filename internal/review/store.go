@@ -23,6 +23,9 @@ type Proposals interface {
 	// Annotate appends one record to the log of a revision.
 	Annotate(revision SHA, record Record) error
 
+	// Retarget records that the proposal lands on another branch now.
+	Retarget(proposal Proposal, event Event) error
+
 	// Land moves the target branch onto the proposal's head and records it.
 	Land(proposal Proposal, event Event) error
 

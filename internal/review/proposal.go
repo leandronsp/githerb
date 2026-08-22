@@ -301,6 +301,24 @@ func (p Proposal) withCheck(check Check) (Proposal, error) {
 	return next, nil
 }
 
+// Retargeted points the proposal at another branch. Nothing else moves: the
+// base is where the work was cut from and stays true whatever it lands on.
+func (p Proposal) Retargeted(target Branch) (Proposal, error) {
+	if p.state != StateOpen {
+		return Proposal{}, fmt.Errorf("proposal is %s: %w", p.state, ErrNotOpen)
+	}
+
+	branch, err := ParseBranch(string(target))
+	if err != nil {
+		return Proposal{}, err
+	}
+
+	next := p.clone()
+	next.target = branch
+
+	return next, nil
+}
+
 // Abandoned gives up on a proposal, which is how something that did not get in
 // stays visible instead of disappearing.
 func (p Proposal) Abandoned() (Proposal, error) {

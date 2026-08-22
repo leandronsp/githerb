@@ -276,14 +276,23 @@ func land(args []string) error {
 		return err
 	}
 
-	use := app.Land{Proposals: s.proposals, Required: s.config.Required(), Author: s.author, Now: s.now}
+	use := app.Land{
+		Proposals: s.proposals, Git: s.git,
+		Required: s.config.Required(), Author: s.author, Now: s.now,
+	}
 
-	proposal, err := use.Run(args[0])
+	landing, err := use.Run(args[0])
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s landed onto %s at %s\n", proposal.ID(), proposal.Target(), short(proposal.Head().SHA()))
+	landed := landing.Proposal
+
+	fmt.Printf("%s landed onto %s at %s\n", landed.ID(), landed.Target(), short(landed.Head().SHA()))
+
+	for _, id := range landing.Followed {
+		fmt.Printf("%s now lands onto %s\n", id, landed.Target())
+	}
 
 	return nil
 }

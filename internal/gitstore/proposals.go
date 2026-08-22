@@ -77,6 +77,11 @@ func (s Store) Land(proposal review.Proposal, event review.Event) error {
 	return s.appendEvent(s.firstRevision(proposal), event)
 }
 
+// Retarget records that the proposal lands on another branch now.
+func (s Store) Retarget(proposal review.Proposal, event review.Event) error {
+	return s.appendEvent(s.firstRevision(proposal), event)
+}
+
 // Abandon records that a proposal will not be landing.
 func (s Store) Abandon(proposal review.Proposal, event review.Event) error {
 	return s.appendEvent(s.firstRevision(proposal), event)
@@ -99,6 +104,11 @@ func (s Store) Load(id review.ProposalID) (review.Proposal, error) {
 	}
 
 	proposal, err := open(id, revisions[0], events)
+	if err != nil {
+		return review.Proposal{}, err
+	}
+
+	proposal, err = retargeted(proposal, events)
 	if err != nil {
 		return review.Proposal{}, err
 	}
@@ -151,6 +161,32 @@ func open(id review.ProposalID, first review.Revision, events []review.Event) (r
 	return review.Proposal{}, fmt.Errorf("proposal %q has no opening event: %w", id, ErrNotFound)
 }
 
+// retargeted replays the moves in the order they happened. The log is a set
+// once two machines have merged it, so the timestamp is what orders it, and a
+// clock that lies is the limit of that.
+func retargeted(proposal review.Proposal, events []review.Event) (review.Proposal, error) {
+	moves := make([]review.Event, 0, len(events))
+
+	for _, event := range events {
+		if event.Kind() == review.EventRetargeted {
+			moves = append(moves, event)
+		}
+	}
+
+	sort.SliceStable(moves, func(i, j int) bool { return moves[i].At().Before(moves[j].At()) })
+
+	for _, move := range moves {
+		next, err := proposal.Retargeted(move.Target())
+		if err != nil {
+			return review.Proposal{}, fmt.Errorf("proposal %q: %w", proposal.ID(), err)
+		}
+
+		proposal = next
+	}
+
+	return proposal, nil
+}
+
 func landIfEnded(proposal review.Proposal, events []review.Event) (review.Proposal, error) {
 	for _, event := range events {
 		var (
@@ -165,7 +201,7 @@ func landIfEnded(proposal review.Proposal, events []review.Event) (review.Propos
 			ended, err = proposal.Landed(nil...)
 		case review.EventAbandoned:
 			ended, err = proposal.Abandoned()
-		case review.EventOpened:
+		case review.EventOpened, review.EventRetargeted:
 			continue
 		default:
 			continue

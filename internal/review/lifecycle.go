@@ -12,9 +12,10 @@ type EventKind string
 
 // The moments a proposal has. Everything between them is annotation.
 const (
-	EventOpened    EventKind = "opened"
-	EventLanded    EventKind = "landed"
-	EventAbandoned EventKind = "abandoned"
+	EventOpened     EventKind = "opened"
+	EventLanded     EventKind = "landed"
+	EventAbandoned  EventKind = "abandoned"
+	EventRetargeted EventKind = "retargeted"
 )
 
 // Event is one line of the proposal log: it opened, or it landed. Like every
@@ -54,6 +55,32 @@ func Opened(id ProposalID, title string, target Branch, base SHA, author string,
 		title:  title,
 		target: target,
 		base:   base,
+		author: author,
+		at:     at.UTC().Truncate(time.Second),
+	}, nil
+}
+
+// Retargeted is the event for a proposal that lands somewhere else now. It
+// happens when the branch underneath it lands: a stack is a chain of proposals
+// aimed at each other, and the one on top has to follow.
+func Retargeted(id ProposalID, target Branch, author string, at time.Time) (Event, error) {
+	author = strings.TrimSpace(author)
+
+	switch {
+	case strings.TrimSpace(string(id)) == "":
+		return Event{}, ErrNoProposalID
+	case strings.TrimSpace(string(target)) == "":
+		return Event{}, ErrNoBranch
+	case author == "":
+		return Event{}, ErrNoAuthor
+	}
+
+	return Event{
+		kind:   EventRetargeted,
+		id:     id,
+		title:  "",
+		target: target,
+		base:   "",
 		author: author,
 		at:     at.UTC().Truncate(time.Second),
 	}, nil
@@ -165,6 +192,8 @@ func ParseEvent(raw []byte) (Event, error) {
 		return Landed(ProposalID(l.ID), l.Author, at)
 	case EventAbandoned:
 		return Abandoned(ProposalID(l.ID), l.Author, at)
+	case EventRetargeted:
+		return Retargeted(ProposalID(l.ID), Branch(l.Target), l.Author, at)
 	default:
 		return Event{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}

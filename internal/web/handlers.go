@@ -193,7 +193,10 @@ func (s Server) resolve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) land(w http.ResponseWriter, r *http.Request) {
-	use := app.Land{Proposals: s.Proposals, Required: s.Required, Author: s.Author, Now: s.Now}
+	use := app.Land{
+		Proposals: s.Proposals, Git: s.Git,
+		Required: s.Required, Author: s.Author, Now: s.Now,
+	}
 
 	if _, err := use.Run(r.PathValue("id")); err != nil {
 		s.fail(w, err)
