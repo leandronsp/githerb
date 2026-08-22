@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -28,6 +29,15 @@ func runLoop(args []string) error {
 		return err
 	}
 
+	// A loop is not a person. Without GITHERB_AUTHOR the session would sign
+	// these records with the git identity of whoever started it, and the log
+	// would read as though you had run the rebase yourself at three in the
+	// morning.
+	author := s.author
+	if os.Getenv("GITHERB_AUTHOR") == "" {
+		author = "githerb-run"
+	}
+
 	release, err := runner.Lock(s.repo.Dir())
 	if err != nil {
 		return err
@@ -41,7 +51,7 @@ func runLoop(args []string) error {
 		Config:    s.config,
 		Root:      s.repo.Dir(),
 		Agent:     s.config.Agent.Command,
-		Author:    s.author,
+		Author:    author,
 		Now:       s.now,
 		Every:     *every,
 		Say:       func(line string) { fmt.Println(line) },
