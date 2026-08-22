@@ -18,30 +18,33 @@ githerb land <proposal>
 
 ## Architecture
 
+A Cargo workspace; the dependency arrows in the `Cargo.toml` files are the
+diagram.
+
 ```
   you ──► browser ─┐                        ┌─► agent (any CLI, on stdin)
                    │                        │
-                   ├──► internal/app ◄──────┘   use cases, one per verb
+                   ├──► crates/app ◄────────┘   use cases, one per verb
                    │      propose  annotate     revise  dispatch
                    │      land     resolve      check   abandon
                    │             │
                    │             ▼
-                   │    internal/review             the core: pure, no I/O
+                   │    crates/review              the core: pure, no I/O
                    │      Proposal (aggregate root)
-                   │      Comment  Chunk  Check
-                   │      Work     Dispatch  Span
-                   │             │ ports declared here
-                   │             ▼
-                   │    internal/gitstore           refs + notes, append-only
+                   │      Comment  Reply  Resolution  Check
+                   │      Chunk  Work  Dispatch  Span
                    │             │
+                   │    crates/gitstore            refs + notes, append-only,
+                   │             │                 three processes to read it all
                    └─────────────┼──► your git repository
                                  │
-  internal/runner ───────────────┘    read the log, claim a job, run [agent]
+  crates/runner ─────────────────┘    read the log, claim a job, run [agent]
                                       in a throwaway worktree, write it down
 
-  internal/web     server-rendered HTML over SSE; one JS file, no framework
-  internal/patch   unified diff in, anchored lines out
-  cmd/githerb      flags, and nothing else
+  crates/web      server-rendered HTML over SSE; one JS file, no framework,
+                  a hand-rolled HTTP server on std::net
+  crates/patch    unified diff in, anchored lines out
+  src/main.rs     flags, and nothing else
 ```
 
 | what | where |
@@ -75,29 +78,16 @@ back as the next revision. It is never asked to run githerb, and the worktree
 is why bypassing permissions is reasonable: nothing it does reaches the
 checkout you have open.
 
-## Roadmap
+## Requirements
 
-Done:
-
-- propose, revise, annotate, resolve, land, abandon
-- browser review: line and range notes, decisions, checks, live over SSE
-- stacked proposals, and landing one retargets what was stacked on it
-- gate: declared checks in a throwaway worktree, recorded per revision
-- agent loop: dispatch, apply, rebase with the conflicts handed back
-- work log: who picked it up, what happened, immutable
-
-Next:
-
-- read a verdict from an external CI instead of running the command here
-- more than one job at a time, and runners somewhere other than your laptop
-- fetching a colleague's proposals: the refs travel, the ergonomics do not
-- notes that survive a revision, instead of resting on the one they were left on
+Rust 1.98 or newer to build; git 2.42 or newer to run (`git notes append
+--no-separator`).
 
 ## Development
 
 ```bash
 make          # the targets
-make check    # format, vet, warnings as errors, lint, tests
+make check    # format, clippy with warnings as errors, tests
 make smoke    # the whole product against a real repository and a real browser
 ```
 
