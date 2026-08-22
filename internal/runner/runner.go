@@ -143,7 +143,7 @@ func (r Runner) perform(ctx context.Context, job Job, proposal review.Proposal) 
 // apply hands the open notes to the agent in a worktree of the head, and takes
 // whatever it committed as the next revision.
 func (r Runner) apply(ctx context.Context, proposal review.Proposal) (string, error) {
-	brief := proposal.Handover()
+	brief := proposal.Brief()
 	if brief == "" {
 		return "", ErrNothingToApply
 	}
@@ -223,6 +223,13 @@ func (r Runner) agentRevision(
 	revise := app.Revise{Proposals: r.Proposals, Git: r.Git}
 
 	next, err := revise.Run(string(proposal.ID()), string(moved))
+
+	// An agent that happens to have this CLI may have recorded the revision
+	// itself. The commit is what matters and it is there either way.
+	if errors.Is(err, review.ErrRevisionKnown) {
+		next, err = r.Proposals.Load(proposal.ID())
+	}
+
 	if err != nil {
 		return "", err
 	}
@@ -259,11 +266,28 @@ func (r Runner) check(proposal review.Proposal) (string, error) {
 func (r Runner) report(job Job, phase review.Phase, note string) error {
 	use := app.Report{Proposals: r.Proposals, Author: r.Author, Now: r.Now}
 
-	if _, err := use.Run(string(job.ID), string(job.Task), string(phase), note); err != nil {
+	// The note is cut here rather than trusted. A record refused for being one
+	// character too long would leave the job looking like it never finished,
+	// which is worse than a sentence that ends early.
+	if _, err := use.Run(string(job.ID), string(job.Task), string(phase), cut(note)); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// noteCeiling is the domain's ceiling for a one line note, minus room for the
+// ellipsis that says it was cut.
+const noteCeiling = 137
+
+func cut(note string) string {
+	note = firstLine(note)
+
+	if len([]rune(note)) <= noteCeiling {
+		return note
+	}
+
+	return string([]rune(note)[:noteCeiling]) + "..."
 }
 
 func (r Runner) say(format string, args ...any) {

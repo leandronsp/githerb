@@ -1,9 +1,11 @@
 package runner_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/leandronsp/githerb/internal/app"
 	"github.com/leandronsp/githerb/internal/review"
 	"github.com/leandronsp/githerb/internal/runner"
 )
@@ -97,5 +99,52 @@ func TestWhatThePendingWorkIs(t *testing.T) {
 				t.Fatalf("found %+v, want one %s", jobs, tc.want)
 			}
 		})
+	}
+}
+
+func TestALongNoteIsCutRatherThanRefused(t *testing.T) {
+	t.Parallel()
+
+	k := setup(t)
+
+	git(t, k.dir, "checkout", "-q", "-b", "work")
+	write(t, k.dir, "a.txt", "one\nTWO\n")
+	git(t, k.dir, "commit", "-qam", "the work")
+
+	proposal := k.propose(t, "The work", "main")
+
+	annotate := app.Annotate{
+		Proposals: k.proposals, Author: "leandro",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	if _, err := annotate.Run(string(proposal.ID()), "a.txt", "new", 2, 2, "name it"); err != nil {
+		t.Fatalf("annotate: %v", err)
+	}
+
+	dispatch := app.Dispatch{
+		Proposals: k.proposals, Author: "leandro",
+		Now: func() time.Time { return time.Now().UTC() },
+	}
+
+	if _, err := dispatch.Run(string(proposal.ID())); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+
+	// An agent that ends on a paragraph. The record has a ceiling and the job
+	// still has to come out finished.
+	chatty := "printf 'x%.0s' $(seq 1 400); echo; printf 'one\\nNAMED\\n' > a.txt && git add -A && git commit -qm answered"
+
+	if _, err := k.loop(chatty).Once(context.Background()); err != nil {
+		t.Fatalf("once: %v", err)
+	}
+
+	after, err := k.proposals.Load(proposal.ID())
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	if !after.Activity().Idle() {
+		t.Fatalf("the job reads as %+v, want finished", after.Activity())
 	}
 }

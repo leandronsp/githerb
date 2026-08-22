@@ -12,6 +12,19 @@ import (
 //
 // It is empty when nothing is open, because there is nothing to say.
 func (p Proposal) Handover() string {
+	return p.brief(true, fmt.Sprintf("Apply each note and resolve it, then: githerb revise %s\n", p.id))
+}
+
+// Brief is the same notes handed to an agent by a runner, which records the
+// revision itself. An agent told to record it too records it first, and then
+// the runner is the one that looks like it failed.
+func (p Proposal) Brief() string {
+	return p.brief(false, "Apply every note above in this working directory and commit.\n"+
+		"Do not push, do not rebase, and do not run githerb: the commit you leave\n"+
+		"here is read back as the next revision.\n")
+}
+
+func (p Proposal) brief(commands bool, closing string) string {
 	open := p.Open()
 	if len(open) == 0 {
 		return ""
@@ -31,10 +44,14 @@ func (p Proposal) Handover() string {
 			fmt.Fprintf(&b, "-%d", span.End())
 		}
 
-		fmt.Fprintf(&b, " %s\n  %s\n  githerb resolve %s %s\n", span.Side(), comment.Body(), p.id, comment.ID())
+		fmt.Fprintf(&b, " %s\n  %s\n", span.Side(), comment.Body())
+
+		if commands {
+			fmt.Fprintf(&b, "  githerb resolve %s %s\n", p.id, comment.ID())
+		}
 	}
 
-	fmt.Fprintf(&b, "\nApply each note and resolve it, then: githerb revise %s\n", p.id)
+	b.WriteString("\n" + closing)
 
 	return b.String()
 }
