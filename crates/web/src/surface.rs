@@ -202,6 +202,7 @@ impl Surface {
             | app::Error::NoSuchRevision(_)
             | app::Error::Log { .. }
             | app::Error::NotFastForward(_)
+            | app::Error::WorkingTreeInTheWay { .. }
             | app::Error::CheckKilled(_)
             | app::Error::CheckFailed { .. } => Response::bad_request(err.to_string()),
         }

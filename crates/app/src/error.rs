@@ -44,6 +44,14 @@ pub enum Error {
     },
     /// The target branch moved on, so landing would not be a fast-forward.
     NotFastForward(Branch),
+    /// The target is the branch checked out here and the working tree has
+    /// something in the way of moving with it.
+    WorkingTreeInTheWay {
+        /// The branch that is checked out.
+        target: Branch,
+        /// What git refused to overwrite, first line.
+        detail: String,
+    },
     /// A check command that died on a signal, which is not a verdict on it.
     CheckKilled(CheckName),
     /// The gate: checks ran on the head revision and some said no.
@@ -78,6 +86,10 @@ impl fmt::Display for Error {
             Error::NotFastForward(target) => {
                 write!(f, "{target} moved since the proposal was cut")
             }
+            Error::WorkingTreeInTheWay { target, detail } => write!(
+                f,
+                "{target} is checked out here and the working tree is in the way: {detail}; commit or stash, then land"
+            ),
             Error::CheckKilled(name) => write!(
                 f,
                 "a check that was killed is not a check that failed: {name}"
@@ -104,6 +116,7 @@ impl std::error::Error for Error {
             | Error::NotARevision(_)
             | Error::NoSuchRevision(_)
             | Error::NotFastForward(_)
+            | Error::WorkingTreeInTheWay { .. }
             | Error::CheckKilled(_)
             | Error::CheckFailed { .. } => None,
         }

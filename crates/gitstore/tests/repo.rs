@@ -574,3 +574,39 @@ fn rebase_onto_stops_on_a_conflict_and_abort_puts_it_back() -> Result<(), Error>
     assert_eq!(repo.head(&dir)?, side);
     Ok(())
 }
+
+// --- the checked-out branch ---
+
+#[test]
+fn the_current_branch_is_what_head_points_at_and_none_when_detached() -> Result<(), Error> {
+    let temp = TempRepo::new();
+    temp.write("a.txt", "one\n");
+    let sha = temp.commit("root");
+    let repo = Repo::open(&temp.root)?;
+    assert_eq!(repo.current_branch()?.as_deref(), Some("refs/heads/main"));
+    temp.git(&["checkout", "-q", "--detach", &sha]);
+    assert_eq!(repo.current_branch()?, None);
+    Ok(())
+}
+
+#[test]
+fn a_fast_forward_moves_the_branch_the_index_and_the_working_tree() -> Result<(), Error> {
+    let temp = TempRepo::new();
+    temp.write("a.txt", "one\n");
+    temp.commit("root");
+    let repo = Repo::open(&temp.root)?;
+    temp.git(&["checkout", "-q", "-b", "work"]);
+    temp.write("f.txt", "new\n");
+    let sha = temp.commit("work");
+    temp.git(&["checkout", "-q", "main"]);
+
+    repo.fast_forward(&sha)?;
+
+    assert_eq!(repo.head_of("refs/heads/main")?, sha);
+    assert_eq!(repo.run(&["status", "--porcelain"])?, "");
+    assert_eq!(
+        std::fs::read_to_string(temp.root.join("f.txt")).unwrap(),
+        "new\n"
+    );
+    Ok(())
+}

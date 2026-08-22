@@ -681,3 +681,72 @@ fn the_author_is_whoever_the_repository_says_when_nothing_else_does() {
     }
     assert_eq!(Identity::runner().as_str(), "githerb-run");
 }
+
+// --- landing onto the branch checked out here ---
+
+/// `githerb review` runs in the checkout, and landing from the browser moves
+/// the very branch that checkout is on. The branch, the index and the working
+/// tree have to move together, or the next commit from here quietly reverts
+/// what just landed.
+#[test]
+fn landing_onto_the_branch_checked_out_here_moves_the_working_tree_with_it() -> Result<()> {
+    let temp = TempRepo::new();
+    temp.git(&["checkout", "-q", "-b", "work"]);
+    fs::write(temp.root.join("a.txt"), "landed\n").unwrap();
+    temp.git(&["add", "a.txt"]);
+    temp.git(&["commit", "-q", "-m", "the work"]);
+    let store = temp.store();
+    let proposal = app::propose(&store, &author(), now(), "The work", "main", "HEAD")?;
+    temp.git(&["checkout", "-q", "main"]);
+    assert!(!temp.root.join("a.txt").exists());
+
+    let landing = app::land(&store, &[], &author(), now(), proposal.id())?;
+
+    let head = landing.proposal().head().sha().as_str().to_owned();
+    assert_eq!(temp.head_of("main"), head);
+    assert_eq!(temp.git(&["rev-parse", "HEAD"]), head);
+    assert_eq!(
+        temp.git(&["status", "--porcelain"]),
+        "",
+        "the checkout must be clean after landing"
+    );
+    assert_eq!(
+        fs::read_to_string(temp.root.join("a.txt")).unwrap(),
+        "landed\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn landing_onto_the_checked_out_branch_is_refused_when_the_tree_is_in_the_way() -> Result<()> {
+    let temp = TempRepo::new();
+    temp.git(&["checkout", "-q", "-b", "work"]);
+    fs::write(temp.root.join("a.txt"), "landed\n").unwrap();
+    temp.git(&["add", "a.txt"]);
+    temp.git(&["commit", "-q", "-m", "the work"]);
+    let store = temp.store();
+    let proposal = app::propose(&store, &author(), now(), "The work", "main", "HEAD")?;
+    temp.git(&["checkout", "-q", "main"]);
+    // Somebody is halfway through something here: an untracked a.txt the land
+    // would have to overwrite.
+    fs::write(temp.root.join("a.txt"), "mine, unsaved\n").unwrap();
+    let before = temp.head_of("main");
+
+    let refused = app::land(&store, &[], &author(), now(), proposal.id()).unwrap_err();
+
+    assert!(
+        matches!(refused, Error::WorkingTreeInTheWay { .. }),
+        "{refused}"
+    );
+    assert!(
+        refused.to_string().contains("main is checked out here"),
+        "{refused}"
+    );
+    assert_eq!(temp.head_of("main"), before, "main must not move");
+    assert_eq!(
+        fs::read_to_string(temp.root.join("a.txt")).unwrap(),
+        "mine, unsaved\n"
+    );
+    assert_eq!(store.load(proposal.id())?.state(), State::Open);
+    Ok(())
+}

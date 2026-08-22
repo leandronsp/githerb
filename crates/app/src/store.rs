@@ -139,8 +139,20 @@ impl Store {
             return Err(Error::NotFastForward(target.clone()));
         }
 
-        self.repo
-            .update_ref(&target.git_ref(), head.as_str(), Some(&current))?;
+        // The branch the checkout is on cannot move alone: the index and the
+        // working tree go with it, or the next commit from here reverts the
+        // land. Any other branch is a ref, and a ref moves by itself.
+        if self.repo.current_branch()?.as_deref() == Some(target.git_ref().as_str()) {
+            self.repo.fast_forward(head.as_str()).map_err(|refused| {
+                Error::WorkingTreeInTheWay {
+                    target: target.clone(),
+                    detail: first_line(&refused),
+                }
+            })?;
+        } else {
+            self.repo
+                .update_ref(&target.git_ref(), head.as_str(), Some(&current))?;
+        }
 
         self.event(first_revision(proposal), event)
     }
@@ -178,4 +190,14 @@ fn first_revision(proposal: &Proposal) -> &Sha {
         .revisions()
         .first()
         .map_or_else(|| proposal.head().sha(), |revision| revision.sha())
+}
+
+/// What git said, first line only, without the command that said it.
+fn first_line(refused: &gitstore::Error) -> String {
+    match refused {
+        gitstore::Error::Git { stderr, .. } => stderr.lines().next().unwrap_or("").to_owned(),
+        gitstore::Error::NotARepository(_) | gitstore::Error::Io(_) | gitstore::Error::Utf8 => {
+            refused.to_string()
+        }
+    }
 }

@@ -77,6 +77,27 @@ impl Repo {
         self.run(&["rev-parse", "--verify", "--end-of-options", &spec])
     }
 
+    /// The branch the checkout is on, as a full ref (`refs/heads/main`), or
+    /// `None` when HEAD is detached.
+    pub fn current_branch(&self) -> Result<Option<String>, Error> {
+        let args = ["symbolic-ref", "--quiet", "HEAD"];
+
+        match stdout_or(&self.root, &args, ANSWER_IS_NO)? {
+            Some(name) => Ok(Some(trimmed(name)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Move the checked-out branch onto `sha` and the index and working tree
+    /// with it, refusing unless it is a fast-forward and nothing local is in
+    /// the way. This is what landing onto the branch you are standing on has
+    /// to do: moving the ref alone leaves the next commit reverting the land.
+    pub fn fast_forward(&self, sha: &str) -> Result<(), Error> {
+        self.run(&["merge", "--ff-only", "--quiet", sha])?;
+
+        Ok(())
+    }
+
     /// The commit a branch points at, named by its full ref
     /// (`refs/heads/main`).
     pub fn head_of(&self, branch_ref: &str) -> Result<String, Error> {
