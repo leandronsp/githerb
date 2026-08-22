@@ -35,7 +35,7 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb comment <proposal> --file F --line N[:M] [--side new|old] --body "..."
   githerb comments <proposal> [--json] [--all]
   githerb resolve <proposal> <comment>
-  githerb handover <proposal>          every open note as one brief, for an agent
+  githerb handover <proposal> [--agent]   the open notes as one brief, for an agent
   githerb work start|done|fail <proposal> --task apply|rebase|check [--note "..."]
   githerb dispatch <proposal>          hand the open notes to an agent
   githerb revise <proposal> [revision]

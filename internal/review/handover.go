@@ -19,9 +19,30 @@ func (p Proposal) Handover() string {
 // revision itself. An agent told to record it too records it first, and then
 // the runner is the one that looks like it failed.
 func (p Proposal) Brief() string {
-	return p.brief(false, "Apply every note above in this working directory and commit.\n"+
+	return p.decisions() + p.brief(false, "Apply every note above in this working directory and commit.\n"+
 		"Do not push, do not rebase, and do not run githerb: the commit you leave\n"+
 		"here is read back as the next revision.\n")
+}
+
+// decisions is what the proposal already settled. The agent answering the
+// notes is a new process with no memory of the one that wrote the code, so the
+// reasoning travels with the work or it gets re-litigated every revision.
+func (p Proposal) decisions() string {
+	if len(p.chunks) == 0 || len(p.Open()) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+
+	b.WriteString("What this proposal already decided, and is not up for debate:\n")
+
+	for _, chunk := range p.chunks {
+		fmt.Fprintf(&b, "- %s: %s\n", chunk.title, chunk.decision)
+	}
+
+	b.WriteString("\n")
+
+	return b.String()
 }
 
 func (p Proposal) brief(commands bool, closing string) string {

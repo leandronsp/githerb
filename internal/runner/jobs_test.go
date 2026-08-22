@@ -78,6 +78,11 @@ func TestWhatThePendingWorkIs(t *testing.T) {
 		{"handed over and stale, notes first", proposal(t, dispatched(t, 1)), true, review.TaskApply},
 		{"already picked up", proposal(t, dispatched(t, 1), worked(t, review.TaskApply, review.PhaseStarted, 2)), true, ""},
 		{"gave up on this revision", proposal(t, worked(t, review.TaskCheck, review.PhaseFailed, 2)), true, ""},
+		{
+			"handed over again after a failure",
+			proposal(t, dispatched(t, 1), worked(t, review.TaskApply, review.PhaseFailed, 2), dispatched(t, 3)),
+			false, review.TaskApply,
+		},
 	}
 
 	for _, tc := range cases {

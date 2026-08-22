@@ -231,12 +231,26 @@ func printComment(comment review.Comment, asJSON bool) error {
 // handover prints the whole review as one instruction, which is what the
 // browser button copies and what an agent can be handed directly.
 func handover(args []string) error {
-	proposal, _, err := loadOne(args)
+	if len(args) == 0 {
+		return ErrUsage
+	}
+
+	set := flag.NewFlagSet("handover", flag.ContinueOnError)
+	asRunner := set.Bool("agent", false, "print what a runner hands an agent, decisions and all")
+
+	if err := set.Parse(args[1:]); err != nil {
+		return ErrUsage
+	}
+
+	proposal, _, err := loadOne(args[:1])
 	if err != nil {
 		return err
 	}
 
 	brief := proposal.Handover()
+	if *asRunner {
+		brief = proposal.Brief()
+	}
 	if brief == "" {
 		fmt.Println("nothing open")
 

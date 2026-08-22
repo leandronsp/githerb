@@ -5,5 +5,5 @@ gate = "make check"
 
 # What answers a handover. The brief arrives on stdin and the working directory
 # is a throwaway worktree of the revision under review.
-# [agent]
-# command = "claude -p --permission-mode bypassPermissions"
+[agent]
+command = "claude -p --permission-mode bypassPermissions"

@@ -35,15 +35,22 @@ func Pending(proposals []review.Proposal, stale map[review.ProposalID]bool, requ
 func next(proposal review.Proposal, stale bool, required []review.CheckName) (Job, bool) {
 	activity := proposal.Activity()
 
-	// Something is on it, or the last thing tried gave up on this exact
-	// revision. Retrying either one is how a loop burns tokens all night.
-	if proposal.State() != review.StateOpen || activity.Working() || activity.Failed() {
+	if proposal.State() != review.StateOpen || activity.Working() {
+		return noJob, false
+	}
+
+	// Handing the notes over again is how a person says try it again, and it is
+	// the only thing that clears a failure. Everything else waits, because a
+	// loop that retries what already failed burns tokens all night.
+	if proposal.Dispatched() {
+		return Job{ID: proposal.ID(), Task: review.TaskApply, Why: "notes were handed over"}, true
+	}
+
+	if activity.Failed() {
 		return noJob, false
 	}
 
 	switch {
-	case proposal.Dispatched():
-		return Job{ID: proposal.ID(), Task: review.TaskApply, Why: "notes were handed over"}, true
 	case stale:
 		return Job{ID: proposal.ID(), Task: review.TaskRebase, Why: "the target ran ahead"}, true
 	case missing(proposal, required):
