@@ -171,7 +171,9 @@
   };
 
   const answer = (note) => {
-    const thread = document.getElementById("t-" + note);
+    // The thread lives under its line when the line is in the diff, and in
+    // the rail always; the reply opens wherever the click found it.
+    const thread = document.getElementById("t-" + note) || document.getElementById("s-" + note);
     if (!thread) return;
     close();
     replying = note;

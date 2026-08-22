@@ -110,20 +110,15 @@ fn notes(page: &Page) -> Markup {
     }
 }
 
-/// One line of the note list.
+/// One thread of the note list: where it points, and the whole conversation
+/// with its buttons, so an answer can be read and given from here even when
+/// the line it was left on is no longer in the diff.
 fn item(thread: &Thread) -> Markup {
     html! {
-        li {
-            a href={ "#t-" (thread.id()) } { (thread.file()) ":" (thread.line()) }
-            span class="who" { (thread.author()) }
-            (thread.summary())
-            @if !thread.answers().is_empty() {
-                span class="n" {
-                    "(" (thread.answers().len()) " answer"
-                    @if thread.answers().len() != 1 { "s" }
-                    ")"
-                }
-            }
+        li class=(if thread.stale().is_some() { "thread stale" } else { "thread" })
+            id={ "s-" (thread.id()) } {
+            a class="at" href={ "#t-" (thread.id()) } { (thread.file()) ":" (thread.line()) }
+            (crate::render::diff::conversation(thread))
         }
     }
 }
@@ -134,6 +129,42 @@ mod tests {
     use crate::fixtures::{anchor, note, patch, proposal, sha};
     use crate::model::Page;
     use review::{Chunk, Record, Side};
+
+    /// A note that fell off the head has no row in the diff, so the rail is the
+    /// only place its conversation can be read and answered from.
+    #[test]
+    fn the_rail_carries_the_whole_thread_answers_and_buttons_included() {
+        let mut proposal = proposal();
+        let first = proposal.head().sha().clone();
+        let id = note(
+            &mut proposal,
+            &first,
+            "README.md",
+            Side::New,
+            1,
+            1,
+            "drop it",
+        );
+        proposal
+            .apply(Record::Reply(
+                review::Reply::new(
+                    id.clone(),
+                    first.clone(),
+                    "folded it into the first line",
+                    review::Author::parse("githerb-run").unwrap(),
+                    review::Timestamp::from_unix(1_767_225_600),
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+        proposal.add_revision(sha('c')).unwrap();
+        let html = rail(&Page::build(&proposal, &patch(), &[], None)).into_string();
+        assert!(html.contains(&format!("id=\"s-{id}\"")), "{html}");
+        assert!(html.contains("folded it into the first line"), "{html}");
+        assert!(html.contains("githerb-run"), "{html}");
+        assert!(html.contains(&format!("data-reply=\"{id}\"")), "{html}");
+        assert!(html.contains(&format!("data-resolve=\"{id}\"")), "{html}");
+    }
 
     #[test]
     fn a_note_that_fell_off_the_head_is_folded_away_from_the_open_ones() {

@@ -138,7 +138,9 @@ do_thread() {
   click 'tr.thread-row [data-reply]' false || return 1
   sleep 0.3
   say 'naming both of them costs nothing' || return 1
-  until_js 'document.querySelector("tr.thread-row .answer") !== null && document.querySelector("tr.thread-row .answer").innerText.includes("naming both of them costs nothing")'
+  until_js 'document.querySelector("tr.thread-row .answer") !== null && document.querySelector("tr.thread-row .answer").innerText.includes("naming both of them costs nothing")' || return 1
+  # And the rail carries the whole thread, answer included.
+  js 'document.querySelector("#rail .threads li").innerText' | grep -q "naming both of them costs nothing"
 }
 
 do_land_blocked() {

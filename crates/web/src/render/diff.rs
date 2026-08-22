@@ -35,30 +35,41 @@ pub fn file_table(page: &Page, index: usize) -> Option<Markup> {
 
 /// One thread, standalone, which is what the event stream pushes.
 #[must_use]
+/// One thread, as a row inserted after the line its span ends on.
 pub fn thread_row(thread: &Thread) -> Markup {
     html! {
         tr class="thread-row" id={ "t-" (thread.id()) } data-after=(thread.row()) {
             td colspan="3" {
                 div class=(if thread.stale().is_some() { "thread stale" } else { "thread" }) {
-                    div class="turn" {
-                        span class="who" { (thread.author()) }
-                        time { (thread.at()) }
-                        @if let Some(on) = thread.stale() { span class="on" { (on) } }
-                        p { (thread.body()) }
-                    }
-                    @for answer in thread.answers() {
-                        div class="turn answer" {
-                            span class="who" { (answer.author()) }
-                            p { (answer.body()) }
-                        }
-                    }
-                    p class="doing" {
-                        button data-reply=(thread.id()) { "reply" }
-                        @if !thread.resolved() {
-                            button data-resolve=(thread.id()) { "resolve" }
-                        }
-                    }
+                    (conversation(thread))
                 }
+            }
+        }
+    }
+}
+
+/// The conversation itself: the note, every answer, and what can be done
+/// next. The same markup under the line in the diff and in the rail, so a
+/// thread reads the same wherever it is met, and the rail is a whole thread
+/// when the line it was left on is no longer in the diff.
+pub(crate) fn conversation(thread: &Thread) -> Markup {
+    html! {
+        div class="turn" {
+            span class="who" { (thread.author()) }
+            time { (thread.at()) }
+            @if let Some(on) = thread.stale() { span class="on" { (on) } }
+            p { (thread.body()) }
+        }
+        @for answer in thread.answers() {
+            div class="turn answer" {
+                span class="who" { (answer.author()) }
+                p { (answer.body()) }
+            }
+        }
+        p class="doing" {
+            button data-reply=(thread.id()) { "reply" }
+            @if !thread.resolved() {
+                button data-resolve=(thread.id()) { "resolve" }
             }
         }
     }
