@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The whole product against a real repository: propose from the terminal,
-# annotate in a browser, watch the panel move when an agent answers from the
+# annotate in a browser, watch the page move when an agent answers from the
 # terminal, then land from the browser.
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BIN=$ROOT/bin/githerb
+BIN=${BIN:-$ROOT/target/release/githerb}
 PORT=${PORT:-4278}
 WORK=$(mktemp -d)
 WEB="http://127.0.0.1:$PORT"
@@ -39,8 +39,41 @@ js()  { agent-browser eval "$1" 2>/dev/null | tr -d '"'; }
 click() { agent-browser eval "(() => { const e = document.querySelector($(jsq "$1")); if (!e) return 'missing'; e.dispatchEvent(new MouseEvent('click', {bubbles:true, shiftKey:${2:-false}})); return 'ok'; })()" 2>/dev/null | grep -q ok; }
 
 # Picking lines happens in the gutter on mousedown, the way it does in every
-# other diff, so the smoke has to press there rather than click the code.
-gutter() { agent-browser eval "(() => { const e = document.querySelector($(jsq "$1") + ' .no.new'); if (!e) return 'missing'; e.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, shiftKey:${2:-false}})); e.dispatchEvent(new MouseEvent('mouseup', {bubbles:true})); return 'ok'; })()" 2>/dev/null | grep -q ok; }
+# other diff, so the smoke presses the new-side number cell of that line.
+gutter() {
+  agent-browser eval "(() => {
+    const section = document.querySelector('section.file[data-path=' + $(jsq "$1") + ']');
+    if (!section) return 'missing';
+    const cell = [...section.querySelectorAll('td.n')].find(td => td.textContent.trim() === '$2');
+    if (!cell) return 'missing';
+    cell.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, shiftKey:${3:-false}}));
+    cell.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
+    return 'ok';
+  })()" 2>/dev/null | grep -q ok
+}
+
+# Type into the one textarea the page has open and send it.
+say() {
+  agent-browser eval "(() => {
+    const t = document.querySelector('textarea');
+    if (!t) return 'missing';
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t, $(jsq "$1"));
+    t.dispatchEvent(new Event('input', {bubbles:true}));
+    return 'ok';
+  })()" 2>/dev/null | grep -q ok || return 1
+  sleep 0.2
+  click 'form button[type="submit"]' false
+}
+
+# Poll the page until a JS expression reads true, or give up.
+until_js() {
+  local tries=${2:-20}
+  for _ in $(seq 1 "$tries"); do
+    [ "$(js "$1")" = "true" ] && return 0
+    sleep 0.5
+  done
+  return 1
+}
 
 ## the repository
 
@@ -63,7 +96,7 @@ do_propose() {
 
 do_serve() {
   cd "$WORK" || return 1
-  "$BIN" review --port "$PORT" --open=false >"$WORK/server.log" 2>&1 &
+  "$BIN" review --port "$PORT" --no-open >"$WORK/server.log" 2>&1 &
   SERVER=$!
   for _ in $(seq 1 40); do
     curl -sf -o /dev/null "$WEB/p/$ID" && return 0
@@ -77,80 +110,52 @@ do_serve() {
 do_open() {
   agent-browser cookies clear >/dev/null 2>&1
   agent-browser open "$WEB/p/$ID" >/dev/null 2>&1 || return 1
-  sleep 1
-  [ "$(js 'document.querySelectorAll(".line").length > 0')" = "true" ]
+  until_js 'document.querySelectorAll("#diff tr[id^=\"L-\"]").length > 0' 10
 }
 
 do_select() {
-  gutter '.line[data-file="a.txt"][data-line="new:2"]' false || return 1
-  gutter '.line[data-file="a.txt"][data-line="new:3"]' true || return 1
-  sleep 0.4
-  [ "$(js 'document.querySelectorAll(".line.picked").length')" = "2" ]
+  gutter a.txt 2 false || return 1
+  gutter a.txt 3 true || return 1
+  until_js 'document.querySelectorAll("tr.picked").length === 2' 4
 }
 
 do_annotate() {
-  agent-browser eval "(() => {
-    const t = document.querySelector('textarea');
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t, 'these two want a name');
-    t.dispatchEvent(new Event('input', {bubbles:true}));
-    return 'ok';
-  })()" >/dev/null 2>&1 || return 1
-  sleep 0.3
-  click '.composer button' false || return 1
-  sleep 1.5
-  js 'document.querySelector("#panel").innerText' | grep -q "these two want a name"
+  say 'these two want a name' || return 1
+  until_js 'document.querySelector("#rail .threads") !== null && document.querySelector("#rail .threads").innerText.includes("these two want a name")'
 }
 
 # A note is a thread: it renders where the code is, and anyone can answer it.
 do_thread() {
-  [ "$(js 'document.querySelectorAll(".thread").length')" = "1" ] || return 1
-  js 'document.querySelector(".thread").innerText' | grep -q "these two want a name" || return 1
+  [ "$(js 'document.querySelectorAll("tr.thread-row").length')" = "1" ] || return 1
+  js 'document.querySelector("tr.thread-row").innerText' | grep -q "these two want a name" || return 1
+  # It sits right after the last line it covers.
+  [ "$(js 'document.querySelector("tr.thread-row").previousElementSibling.querySelector("td.n").textContent.trim()')" = "3" ] || return 1
 
-  click '.thread [data-reply]' false || return 1
-  sleep 0.4
-
-  agent-browser eval "(() => {
-    const t = document.querySelector('textarea');
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t, 'naming both of them costs nothing');
-    t.dispatchEvent(new Event('input', {bubbles:true}));
-    return 'ok';
-  })()" >/dev/null 2>&1 || return 1
-
-  click '.composer button' false || return 1
-  sleep 1.5
-
-  js 'document.querySelector(".thread .answer") ? document.querySelector(".thread .answer").innerText : ""' \
-    | grep -q "naming both of them costs nothing"
+  click 'tr.thread-row [data-reply]' false || return 1
+  sleep 0.3
+  say 'naming both of them costs nothing' || return 1
+  until_js 'document.querySelector("tr.thread-row .answer") !== null && document.querySelector("tr.thread-row .answer").innerText.includes("naming both of them costs nothing")'
 }
 
 do_land_blocked() {
-  [ "$(js 'document.querySelector(".land").disabled')" = "true" ]
+  [ "$(js 'document.querySelector("[data-land]").disabled')" = "true" ]
 }
 
-# The header has to say what the diff did before anyone reads a line of it.
+# The bar has to say what the diff did before anyone reads a line of it.
 do_counts() {
-  [ "$(js 'document.querySelector("#page .meta .added").innerText')" = "+2" ] || return 1
-  [ "$(js 'document.querySelector("#page .meta .removed").innerText.length')" = "2" ]
+  [ "$(js 'document.querySelector("#bar .added").innerText')" = "+2" ] || return 1
+  [ "$(js 'document.querySelector("#bar .removed").innerText.length')" = "2" ]
 }
 
 # A file folds away when it is not the one being read, and unfolds again.
 do_fold() {
-  click '.file > h2' false || return 1
+  click 'section.file .fold' false || return 1
   sleep 0.3
-  [ "$(js 'document.querySelector(".file").classList.contains("folded")')" = "true" ] || return 1
-  [ "$(js 'document.querySelector(".hunk").offsetParent === null')" = "true" ] || return 1
-
-  click '.file > h2' false || return 1
+  [ "$(js 'document.querySelector("section.file").classList.contains("folded")')" = "true" ] || return 1
+  [ "$(js 'document.querySelector("section.file table").offsetParent === null')" = "true" ] || return 1
+  click 'section.file .fold' false || return 1
   sleep 0.3
-  [ "$(js 'document.querySelector(".hunk").offsetParent !== null')" = "true" ] || return 1
-
-  click '[data-fold-all]' false || return 1
-  sleep 0.3
-  [ "$(js 'document.querySelectorAll(".file.folded").length === document.querySelectorAll(".file").length')" = "true" ] || return 1
-
-  click '[data-unfold-all]' false || return 1
-  sleep 0.3
-  [ "$(js 'document.querySelectorAll(".file.folded").length')" = "0" ]
+  [ "$(js 'document.querySelector("section.file table").offsetParent !== null')" = "true" ]
 }
 
 # The board says how big a proposal is before anyone opens it.
@@ -158,149 +163,100 @@ do_board() {
   curl -sf "$WEB/" | tr -d '\n' | grep -q "+2"
 }
 
-# One button hands the whole review over, the way an annotation buffer does.
-# A headless browser has no clipboard permission, so the fallback path is the
-# one under test here: either way the brief has to be somewhere to paste from.
+# The brief is one request away, and one button hands the notes to the agent.
 do_handover() {
   curl -sf "$WEB/p/$ID/handover" | grep -q "these two want a name" || return 1
-
-  click '[data-handover]' false || return 1
-
-  # The page says it back in a line that fades, so poll for it rather than
-  # guessing how long a first paint takes.
-  local said=1
+  click '[data-dispatch]' false || return 1
+  cd "$WORK" || return 1
   for _ in $(seq 1 10); do
-    if js 'document.querySelector(".said").innerText' | grep -q "Handed over"; then
-      said=0
-      break
-    fi
+    "$BIN" show "$ID" | grep -q "waiting for an agent" && return 0
     sleep 0.4
   done
-  [ "$said" -eq 0 ] || return 1
-
-  # The click also has to leave the ask in the log, which is what an agent
-  # watching the repository acts on.
-  cd "$WORK" || return 1
-  "$BIN" show "$ID" | grep -q "waiting for an agent"
+  return 1
 }
 
-# The reactive proof: the browser is not touched, an agent answers from the
-# terminal, and the panel has to move on its own.
+# The reactive proof: the browser is not touched, somebody answers from the
+# terminal, and the rail has to move on its own.
 do_live_update() {
-  [ "$(js 'document.querySelector("#panel .count").innerText')" = "1" ] || return 1
-
+  [ "$(js 'document.querySelectorAll("#rail ul.threads > li").length')" = "1" ] || return 1
   cd "$WORK" || return 1
   local comment
   comment=$("$BIN" comments "$ID" | awk '{print $1}')
   [ -n "$comment" ] || return 1
-
   GITHERB_AUTHOR=claude-code "$BIN" resolve "$ID" "$comment" || return 1
-
-  for _ in $(seq 1 20); do
-    [ "$(js 'document.querySelector("#panel .count").innerText')" = "0" ] && return 0
-    sleep 0.5
-  done
-  return 1
+  until_js 'document.querySelectorAll("#rail ul.threads > li").length === 0'
 }
 
-# A new revision moves the lines, so the whole page has to come back, not only
-# the panel. The mark survives a swap and dies on a reload, which is how this
-# tells the two apart.
+# A new revision moves the lines, so the page comes back whole and says so.
 do_new_revision() {
-  agent-browser eval "window.__mark = 'held'" >/dev/null 2>&1
-  [ "$(js 'document.querySelector("#page .meta").innerText.includes("revision 1")')" = "true" ] || return 1
-
+  [ "$(js 'document.querySelector("#bar").innerText.includes("r1")')" = "true" ] || return 1
   cd "$WORK" || return 1
   printf 'one\nTWO_NAMED\ntwo and a half\nthree\nfour\n' > a.txt
   git commit -qam "the fix"
   "$BIN" revise "$ID" >/dev/null || return 1
-
-  for _ in $(seq 1 20); do
-    if [ "$(js 'document.querySelector("#page .meta").innerText.includes("revision 2")')" = "true" ]; then
-      [ "$(js 'window.__mark')" = "held" ] || return 1
-      [ "$(js 'document.querySelector(".scope") !== null')" = "true" ]
-      return $?
-    fi
-    sleep 0.5
-  done
-  return 1
-}
-
-# Every navigation opens an event stream, and a browser gives one host six
-# connections, so a stream left open across a click starves the page the next
-# click asks for. The symptom is a tab that hangs while the server is idle, so
-# this measures from inside the page rather than with curl.
-do_streams() {
-  for _ in $(seq 1 8); do
-    agent-browser eval "(() => { const l = [...document.querySelectorAll('.scope a')]; if (!l.length) return 'none'; l[0].click(); return 'ok'; })()" >/dev/null 2>&1
-    sleep 0.6
-  done
-
-  # What the browser is starved of is connections, so count them rather than
-  # time the symptom: the page and one stream, never a stream per click.
-  local held
-  held=$(lsof -nP -p "$SERVER" 2>/dev/null | grep -c ESTABLISHED)
-  [ "$held" -le 3 ]
+  until_js '/\br2\b/.test(document.querySelector("#bar").innerText)' || return 1
+  [ "$(js 'document.querySelector("#bar .origins") !== null')" = "true" ]
 }
 
 # The other half of the product: a note handed over, an agent answering it in a
 # worktree, and the page saying so without being touched.
 do_agent() {
   cd "$WORK" || return 1
-
   cat > .githerb.toml <<'TOML'
 [agent]
 command = "cat > brief.txt && printf 'one\nTWO_BY_AGENT\ntwo and a half\nthree\nfour\n' > a.txt && git add -A && git commit -qm 'the agent answered'"
 TOML
-
   "$BIN" comment "$ID" --file a.txt --line 2 --body "the agent should name this" >/dev/null || return 1
   "$BIN" dispatch "$ID" >/dev/null || return 1
 
   local before after
   before=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
-
+  after=$before
   # Nothing is started here on purpose: the review surface carries the runner,
   # so handing the notes over is the whole trigger.
-  after=$before
   for _ in $(seq 1 40); do
     after=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
     [ "$after" -gt "$before" ] && break
     sleep 0.5
   done
-
   [ "$after" -gt "$before" ] || return 1
-
   # The agent works in its own worktree, so the checkout here never moved.
   grep -q TWO_NAMED a.txt || return 1
+  until_js "/\\br${after}\\b/.test(document.querySelector('#bar').innerText)" || return 1
+  until_js 'document.querySelector("#bar .agent").innerText.includes("no agent on it")' 10
+}
 
-  for _ in $(seq 1 20); do
-    if [ "$(js "document.querySelector(\"#bar .meta\").innerText.includes(\"revision $after\")")" = "true" ]; then
-      js 'document.querySelector(".agent").innerText' | grep -q "no agent on it"
-      return $?
-    fi
+# Every navigation opens an event stream, and a browser gives one host six
+# connections, so a stream left open across a click starves the next page.
+do_streams() {
+  for _ in $(seq 1 8); do
+    agent-browser eval "(() => { const l = [...document.querySelectorAll('#bar .origins a')]; if (!l.length) return 'none'; l[0].click(); return 'ok'; })()" >/dev/null 2>&1
+    sleep 0.6
+  done
+  local held
+  held=$(lsof -nP -p "$SERVER" 2>/dev/null | grep -c ESTABLISHED)
+  [ "$held" -le 3 ]
+}
+
+do_land_from_browser() {
+  if [ "$(js 'document.querySelector("[data-land]").disabled')" != "false" ]; then
+    echo "blocked: $(js 'document.querySelector("#bar").innerText' | tr "\n" " ")"
+    cd "$WORK" && "$BIN" show "$ID" | head -20
+    return 1
+  fi
+  click '[data-land]' false || return 1
+  cd "$WORK" || return 1
+  local head
+  head=$("$BIN" show "$ID" | awk '/^  r/ {sha=$2} END {print sha}')
+  for _ in $(seq 1 10); do
+    [ "$(git rev-parse --short main)" = "$head" ] && return 0
     sleep 0.5
   done
   return 1
 }
 
-do_land_from_browser() {
-  if [ "$(js 'document.querySelector(".land").disabled')" != "false" ]; then
-    echo "blocked: $(js 'document.querySelector("#bar").innerText' | tr "\n" " ")"
-    cd "$WORK" && "$BIN" show "$ID" | head -20
-    return 1
-  fi
-  click '.land' false || return 1
-  sleep 1.5
-
-  # The head is whatever the last revision points at, which after an agent has
-  # been through it is a commit no branch here carries.
-  cd "$WORK" || return 1
-  local head
-  head=$("$BIN" show "$ID" | awk '/^  r/ {sha=$2} END {print sha}')
-  [ "$(git rev-parse --short main)" = "$head" ]
-}
-
 command -v agent-browser >/dev/null || { echo "smoke needs agent-browser on PATH"; exit 1; }
+[ -x "$BIN" ] || { echo "smoke needs the binary at $BIN (make build)"; exit 1; }
 
 echo
 echo "githerb smoke  ·  $WEB"
@@ -314,11 +270,11 @@ step "shift-click picks a range"   ""  do_select
 step "annotate in the browser"     ""  do_annotate
 step "a note is a thread"          ""  do_thread
 step "landing is blocked"          ""  do_land_blocked
-step "the header counts the diff"  ""  do_counts
+step "the bar counts the diff"     ""  do_counts
 step "a file folds away"           ""  do_fold
 step "the board sizes each one"    ""  do_board
 step "hand the review over"        ""  do_handover
-step "the panel moves on its own"  ""  do_live_update
+step "the rail moves on its own"   ""  do_live_update
 step "a new revision redraws it"   ""  do_new_revision
 step "an agent answers a handover" ""  do_agent
 step "clicking around stays fast"  ""  do_streams
