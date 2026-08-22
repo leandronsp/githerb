@@ -154,8 +154,70 @@ pub enum Command {
         /// Which proposal
         proposal: String,
     },
+    /// Answer the log on its own, for a machine that serves no pages
+    Run {
+        /// Take one pass and stop
+        #[arg(long)]
+        once: bool,
+        /// How long to wait between passes when nothing moves, e.g. 2s, 500ms, 1m
+        #[arg(long, default_value = "2s")]
+        every: Every,
+    },
     /// What this build is called
     Version,
+}
+
+/// A pause a person types: `2s`, `500ms`, `1m`, or a bare number of seconds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Every(pub std::time::Duration);
+
+/// Why a pause was not a pause.
+#[derive(Debug, PartialEq, Eq)]
+pub struct NotADuration(String);
+
+impl fmt::Display for NotADuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} is not a duration like 2s, 500ms or 1m", self.0)
+    }
+}
+
+impl std::error::Error for NotADuration {}
+
+impl FromStr for Every {
+    type Err = NotADuration;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        let refuse = || NotADuration(format!("{raw:?}"));
+        let text = raw.trim();
+        let (digits, unit) = match text.find(|c: char| !c.is_ascii_digit()) {
+            Some(at) => text.split_at(at),
+            None => (text, "s"),
+        };
+        let amount: u64 = digits.parse().map_err(|_ignored| refuse())?;
+        let millis = match unit.trim() {
+            "ms" => amount,
+            "s" => amount * 1000,
+            "m" => amount * 60_000,
+            _ => return Err(refuse()),
+        };
+        if millis == 0 {
+            return Err(refuse());
+        }
+        Ok(Every(std::time::Duration::from_millis(millis)))
+    }
+}
+
+impl fmt::Display for Every {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let millis = self.0.as_millis();
+        if millis.is_multiple_of(60_000) {
+            write!(f, "{}m", millis / 60_000)
+        } else if millis.is_multiple_of(1000) {
+            write!(f, "{}s", millis / 1000)
+        } else {
+            write!(f, "{millis}ms")
+        }
+    }
 }
 
 /// The phase a person types, which is not quite the word the log keeps.
@@ -238,6 +300,29 @@ mod tests {
             "12:x".parse::<Lines>().unwrap_err().to_string(),
             "\"12:x\" is not a line"
         );
+    }
+
+    #[test]
+    fn a_pause_is_seconds_millis_or_minutes() {
+        assert_eq!("2s".parse(), Ok(Every(std::time::Duration::from_secs(2))));
+        assert_eq!(
+            "500ms".parse(),
+            Ok(Every(std::time::Duration::from_millis(500)))
+        );
+        assert_eq!("1m".parse(), Ok(Every(std::time::Duration::from_secs(60))));
+        assert_eq!("3".parse(), Ok(Every(std::time::Duration::from_secs(3))));
+        assert_eq!(
+            Every(std::time::Duration::from_millis(1500)).to_string(),
+            "1500ms"
+        );
+        assert_eq!(Every(std::time::Duration::from_secs(120)).to_string(), "2m");
+    }
+
+    #[test]
+    fn anything_else_is_not_a_pause() {
+        for raw in ["", "0s", "2h", "abc", "-1s"] {
+            assert!(raw.parse::<Every>().is_err(), "{raw:?}");
+        }
     }
 
     #[test]

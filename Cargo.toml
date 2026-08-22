@@ -17,6 +17,7 @@ review = { path = "crates/review" }
 web = { path = "crates/web" }
 runner = { path = "crates/runner" }
 clap = { workspace = true }
+ctrlc = { workspace = true }
 
 [lints]
 workspace = true

@@ -10,14 +10,19 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 mod cli;
+mod daemon;
 
 use std::io::{self, Read, Write};
 
-use app::{Config, Identity, Reader, Result, Store, format};
+use app::{Config, Identity, Reader, Store, format};
 use clap::Parser;
 use review::{Anchor, Author, FilePath, ProposalId, RecordId, Side, Span};
 
 use crate::cli::{Cli, Command};
+use crate::daemon::Failure;
+
+/// What every command answers with: nothing, or why not.
+type Result<T> = std::result::Result<T, Failure>;
 
 fn main() {
     if let Err(err) = run(&Cli::parse().command) {
@@ -283,7 +288,8 @@ fn run(command: &Command) -> Result<()> {
                 return Err(app::Error::CheckFailed {
                     failed,
                     total: results.len(),
-                });
+                }
+                .into());
             }
         }
 
@@ -310,6 +316,8 @@ fn run(command: &Command) -> Result<()> {
                 writeln!(out, "{followed} now lands onto {}", landed.target())?;
             }
         }
+
+        Command::Run { once, every } => daemon::run(*once, every.0, &mut out)?,
 
         Command::Abandon { proposal } => {
             let session = Session::open()?;
