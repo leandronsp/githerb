@@ -1,18 +1,22 @@
-//! The two commands that stay up: the runner on its own, and (soon) the
-//! review surface with the runner alongside. Wiring only: the lock, the
-//! watcher that wakes the loop, the signal that stops it.
+//! The two commands that stay up: the review surface with the runner
+//! alongside, and the runner on its own. Wiring only: the lock, the watcher
+//! that wakes the loops, the signal that stops them.
 
 use std::fmt;
 use std::io::{self, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 use app::Store;
-use web::{Wakeup, Watcher};
+use web::{Server, Surface, Wakeup, Watcher};
 
 /// How often the watcher asks git whether anything moved.
 const PROBE_EVERY: Duration = Duration::from_millis(500);
+
+/// How long the runner alongside the review surface waits when nothing moves.
+const RUNNER_EVERY: Duration = Duration::from_secs(2);
 
 /// Why a long-running command stopped before it was asked to.
 #[derive(Debug)]
@@ -87,18 +91,111 @@ impl From<io::Error> for Failure {
 
 /// A flag that SIGINT and SIGTERM flip, so every loop here has one thing to
 /// look at.
-pub fn shutdown_flag() -> Result<Arc<AtomicBool>, Failure> {
+fn shutdown_flag() -> Result<Arc<AtomicBool>, Failure> {
     let flag = Arc::new(AtomicBool::new(false));
     let flipped = Arc::clone(&flag);
     ctrlc::set_handler(move || flipped.store(true, Ordering::Relaxed))?;
     Ok(flag)
 }
 
-/// One watcher over the repository, probed on its own thread; everything that
-/// wants to know when the log moved subscribes to it.
-pub fn watcher(store: &Store) -> Watcher {
-    let probe = store.clone();
-    Watcher::new(move || probe.fingerprint().unwrap_or_default(), PROBE_EVERY)
+/// Where the running commentary of a long-lived command goes.
+fn say(line: &str) {
+    let _ignored = writeln!(io::stderr(), "{line}");
+}
+
+/// `githerb review`: the pages, and unless told otherwise the runner alongside
+/// them, so the thing you leave open all day is the thing that answers.
+pub fn review(
+    proposal: Option<&str>,
+    port: u16,
+    open: bool,
+    run: bool,
+    out: &mut dyn Write,
+) -> Result<(), Failure> {
+    let store = Store::at(".")?;
+    let author = app::Identity::detect(store.repo());
+    let watcher = web::watching(&store, PROBE_EVERY);
+    let surface = Surface::new(store.clone(), author, watcher.clone(), Box::new(say));
+    let server = Server::bind(&format!("127.0.0.1:{port}"))?;
+    let shutdown = shutdown_flag()?;
+
+    let mut url = format!("http://{}", server.addr());
+    if let Some(id) = proposal {
+        url.push_str("/p/");
+        url.push_str(id);
+    }
+    writeln!(out, "reviewing at {url}")?;
+    if open {
+        launch(&url);
+    }
+
+    let alongside = if run {
+        answer_alongside(&store, &watcher, &shutdown)
+    } else {
+        None
+    };
+
+    let outcome = web::serve(&surface, &server, Arc::clone(&shutdown));
+    shutdown.store(true, Ordering::Relaxed);
+    watcher.stop();
+    if let Some(thread) = alongside {
+        // A join that fails is a runner thread that panicked; there is nothing
+        // left to clean up and nothing to report beyond what it already said.
+        let _ignored = thread.join();
+    }
+    Ok(outcome?)
+}
+
+/// Start the runner on its own thread, or say why not: a second runner on the
+/// same repository is refused by the lock, and the pages are served anyway.
+fn answer_alongside(
+    store: &Store,
+    watcher: &Watcher,
+    shutdown: &Arc<AtomicBool>,
+) -> Option<JoinHandle<()>> {
+    let lock = match runner::Lock::acquire(store.repo().git_dir()) {
+        Ok(lock) => lock,
+        Err(err) => {
+            say(&format!("not answering the log: {err}"));
+            return None;
+        }
+    };
+    if let Err(err) = runner::prune_leftovers(store.repo()) {
+        say(&format!("pruning worktrees: {err}"));
+    }
+    let runner = runner::Runner::new(
+        store.clone(),
+        store.repo().root().to_path_buf(),
+        app::Identity::runner(),
+        Box::new(say),
+    );
+    let mut subscription = watcher.subscribe();
+    let shutdown = Arc::clone(shutdown);
+    Some(std::thread::spawn(move || {
+        let _held = lock;
+        if let Err(err) = runner.recover() {
+            say(&format!("recovering: {err}"));
+        }
+        let mut wait = |budget: Duration| matches!(subscription.wait(budget), Wakeup::Changed);
+        if let Err(err) = runner.run(&mut wait, RUNNER_EVERY, &shutdown) {
+            say(&format!("runner: {err}"));
+        }
+    }))
+}
+
+/// Open the browser on the page, and say nothing if that is not possible:
+/// the address was printed, and that is the contract.
+fn launch(url: &str) {
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    let _ignored = std::process::Command::new(opener)
+        .arg(url)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
 }
 
 /// `githerb run`: the runner on its own, for a machine that serves no pages.
@@ -112,9 +209,7 @@ pub fn run(once: bool, every: Duration, out: &mut dyn Write) -> Result<(), Failu
         store.clone(),
         root.clone(),
         app::Identity::runner(),
-        Box::new(|line| {
-            let _ignored = writeln!(io::stderr(), "{line}");
-        }),
+        Box::new(say),
     );
     let shutdown = shutdown_flag()?;
     runner.recover()?;
@@ -132,7 +227,7 @@ pub fn run(once: bool, every: Duration, out: &mut dyn Write) -> Result<(), Failu
         root.display(),
         crate::cli::Every(every)
     )?;
-    let watcher = watcher(&store);
+    let watcher = web::watching(&store, PROBE_EVERY);
     let mut subscription = watcher.subscribe();
     let mut wait = |budget: Duration| matches!(subscription.wait(budget), Wakeup::Changed);
     let outcome = runner.run(&mut wait, every, &shutdown);

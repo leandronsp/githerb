@@ -317,6 +317,13 @@ fn run(command: &Command) -> Result<()> {
             }
         }
 
+        Command::Review {
+            proposal,
+            port,
+            no_open,
+            no_run,
+        } => daemon::review(proposal.as_deref(), *port, !no_open, !no_run, &mut out)?,
+
         Command::Run { once, every } => daemon::run(*once, every.0, &mut out)?,
 
         Command::Abandon { proposal } => {

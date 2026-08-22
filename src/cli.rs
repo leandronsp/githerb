@@ -154,6 +154,20 @@ pub enum Command {
         /// Which proposal
         proposal: String,
     },
+    /// The browser, and the runner with it
+    Review {
+        /// Open this proposal straight away
+        proposal: Option<String>,
+        /// The port to serve on, 0 to pick a free one
+        #[arg(long, default_value_t = 4270)]
+        port: u16,
+        /// Print the address and leave the browser alone
+        #[arg(long)]
+        no_open: bool,
+        /// Serve pages only; do not answer the log from this process
+        #[arg(long)]
+        no_run: bool,
+    },
     /// Answer the log on its own, for a machine that serves no pages
     Run {
         /// Take one pass and stop
