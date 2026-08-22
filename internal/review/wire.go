@@ -37,6 +37,8 @@ type line struct {
 	Decided  string `json:"decision,omitempty"`
 	Rejected string `json:"rejected,omitempty"`
 
+	Task    Task        `json:"task,omitempty"`
+	Phase   Phase       `json:"phase,omitempty"`
 	Name    CheckName   `json:"name,omitempty"`
 	Status  CheckStatus `json:"status,omitempty"`
 	Seconds int         `json:"seconds,omitempty"`
@@ -52,6 +54,37 @@ func (r Resolution) MarshalLine() ([]byte, error) { return marshal(r.line()) }
 
 // MarshalLine renders the check as the single line it is stored as.
 func (c Check) MarshalLine() ([]byte, error) { return marshal(c.line()) }
+
+// MarshalLine renders the work line as the single line it is stored as.
+func (w Work) MarshalLine() ([]byte, error) { return marshal(w.line()) }
+
+func (w Work) line() line {
+	return line{
+		Version:  version,
+		Kind:     KindWork,
+		ID:       "",
+		Target:   "",
+		Rev:      w.revision,
+		File:     "",
+		Side:     "",
+		Start:    0,
+		End:      0,
+		Body:     w.note,
+		Title:    "",
+		Surface:  "",
+		Before:   "",
+		After:    "",
+		Decided:  "",
+		Rejected: "",
+		Task:     w.task,
+		Phase:    w.phase,
+		Name:     "",
+		Status:   "",
+		Seconds:  0,
+		Author:   w.agent,
+		At:       w.at.Format(time.RFC3339),
+	}
+}
 
 // MarshalLine renders the decision as the single line it is stored as.
 func (c Chunk) MarshalLine() ([]byte, error) { return marshal(c.line()) }
@@ -74,6 +107,8 @@ func (c Chunk) line() line {
 		After:    c.after,
 		Decided:  c.decision,
 		Rejected: c.rejected,
+		Task:     "",
+		Phase:    "",
 		Name:     "",
 		Status:   "",
 		Seconds:  0,
@@ -100,6 +135,8 @@ func (c Comment) line() line {
 		After:    "",
 		Decided:  "",
 		Rejected: "",
+		Task:     "",
+		Phase:    "",
 		Name:     "",
 		Status:   "",
 		Seconds:  0,
@@ -126,6 +163,8 @@ func (c Check) line() line {
 		After:    "",
 		Decided:  "",
 		Rejected: "",
+		Task:     "",
+		Phase:    "",
 		Name:     c.name,
 		Status:   c.status,
 		Seconds:  c.seconds,
@@ -152,6 +191,8 @@ func (r Resolution) line() line {
 		After:    "",
 		Decided:  "",
 		Rejected: "",
+		Task:     "",
+		Phase:    "",
 		Name:     "",
 		Status:   "",
 		Seconds:  0,
@@ -240,6 +281,8 @@ func ParseLine(raw []byte) (Record, error) {
 		return parseChunk(l)
 	case KindRationale:
 		return parseRationale(l, moment)
+	case KindWork:
+		return parseWork(l, moment)
 	default:
 		return Record{}, fmt.Errorf("%q: %w", l.Kind, ErrUnknownKind)
 	}
@@ -309,4 +352,13 @@ func parseResolution(l line, at time.Time) (Record, error) {
 	}
 
 	return ResolutionRecord(resolution), nil
+}
+
+func parseWork(l line, at time.Time) (Record, error) {
+	work, err := NewWork(l.Rev, l.Task, l.Phase, l.Author, l.Body, at)
+	if err != nil {
+		return Record{}, err
+	}
+
+	return WorkRecord(work), nil
 }

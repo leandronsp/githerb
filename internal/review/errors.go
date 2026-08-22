@@ -35,4 +35,6 @@ var (
 	ErrTooLong         = errors.New("longer than the ceiling, say it shorter")
 	ErrNoBeforeAfter   = errors.New("a chunk says how it was and how it is")
 	ErrNoDecision      = errors.New("a chunk names the call that was made")
+	ErrUnknownTask     = errors.New("a task this build does not run")
+	ErrUnknownPhase    = errors.New("a task starts, finishes or fails")
 )

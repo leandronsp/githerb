@@ -229,6 +229,45 @@ func handover(args []string) error {
 	return nil
 }
 
+// work is how an agent says it picked something up, finished it or gave up.
+// The phases are named for a person reading the log, not for the machine.
+var phases = map[string]string{"start": "started", "done": "finished", "fail": "failed"}
+
+func workCmd(args []string) error {
+	if len(args) < 2 {
+		return ErrUsage
+	}
+
+	phase, known := phases[args[0]]
+	if !known {
+		return fmt.Errorf("work %q: %w", args[0], ErrUsage)
+	}
+
+	set := flag.NewFlagSet("work", flag.ContinueOnError)
+	task := set.String("task", "", "apply, rebase or check")
+	note := set.String("note", "", "one line about it, usually why it stopped")
+
+	if err := set.Parse(args[2:]); err != nil {
+		return ErrUsage
+	}
+
+	s, err := newSession()
+	if err != nil {
+		return err
+	}
+
+	use := app.Report{Proposals: s.proposals, Author: s.author, Now: s.now}
+
+	line, err := use.Run(args[1], *task, phase, *note)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s %s %s\n", line.Agent(), line.Task(), line.Phase())
+
+	return nil
+}
+
 func resolve(args []string) error {
 	if len(args) != 2 {
 		return ErrUsage

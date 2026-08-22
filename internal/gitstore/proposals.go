@@ -431,6 +431,12 @@ func marshalRecord(record review.Record) (string, error) {
 		line, err := comment.MarshalLine()
 
 		return strings.Replace(string(line), `"kind":"comment"`, `"kind":"rationale"`, 1), wrap(err)
+	case review.KindWork:
+		work, _ := record.Work()
+
+		line, err := work.MarshalLine()
+
+		return string(line), wrap(err)
 	default:
 		return "", fmt.Errorf("%q: %w", record.Kind(), review.ErrUnknownKind)
 	}

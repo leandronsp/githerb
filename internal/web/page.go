@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/leandronsp/githerb/internal/patch"
@@ -189,6 +190,55 @@ func (p Page) Anchor(chunk review.Chunk) string {
 	return fmt.Sprintf("L-%s-%s-%d", chunk.File(), chunk.Span().Side(), chunk.Span().Start())
 }
 
+// Activity is what the agent log adds up to right now.
+func (p Page) Activity() review.Activity { return p.Proposal.Activity() }
+
+// Timeline is what agents have done to this proposal, newest first. It is the
+// answer to who picked this up and when, and it is derived rather than kept.
+func (p Page) Timeline() []review.Work {
+	work := p.Proposal.Work()
+
+	sort.SliceStable(work, func(i, j int) bool { return work[i].At().After(work[j].At()) })
+
+	if len(work) > timelineDepth {
+		work = work[:timelineDepth]
+	}
+
+	return work
+}
+
+// timelineDepth is how far back the panel shows. The whole log is in git for
+// anyone who wants it; a column that scrolls is not where you read history.
+const timelineDepth = 8
+
+// AgentState is idle, working or failed, which is also the chip's class.
+func (p Page) AgentState() string {
+	activity := p.Activity()
+
+	switch {
+	case activity.Working():
+		return "working"
+	case activity.Failed():
+		return "failed"
+	default:
+		return "idle"
+	}
+}
+
+// AgentSays is what the chip reads.
+func (p Page) AgentSays() string {
+	activity := p.Activity()
+
+	switch {
+	case activity.Working():
+		return fmt.Sprintf("%s %s", activity.Agent(), activity.Task())
+	case activity.Failed():
+		return fmt.Sprintf("%s failed", activity.Task())
+	default:
+		return "no agent on it"
+	}
+}
+
 // Revised reports whether there is an earlier revision to compare against,
 // which is the only question a reviewer coming back actually has.
 func (p Page) Revised() bool { return len(p.Proposal.Revisions()) > 1 }
@@ -252,6 +302,11 @@ func fingerprint(proposal review.Proposal, open []review.Comment) string {
 	// built from one would flap and push an update on every tick.
 	for _, check := range proposal.SortedChecks() {
 		fmt.Fprintf(&b, "%s=%s,", check.Name(), check.Status())
+	}
+
+	// The agent's own log, so a task starting shows up without a reload.
+	for _, line := range proposal.Work() {
+		fmt.Fprintf(&b, "%s/%s@%d,", line.Task(), line.Phase(), line.At().Unix())
 	}
 
 	sum := sha256.Sum256([]byte(b.String()))

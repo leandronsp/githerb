@@ -97,6 +97,23 @@
   .bar .land { width: auto; margin: 0; }
   .bar .blocked { margin-right: .5rem; color: var(--ink-faint); }
 
+  /* the agent, which is the only thing on the page that moves on its own */
+  .agent {
+    font: 11.5px ui-monospace, monospace; padding: .15rem .55rem; border-radius: 999px;
+    border: 1px solid var(--rule); background: var(--paper); color: var(--ink-soft);
+  }
+  .agent.working { border-color: var(--herb); background: var(--herb-wash); color: var(--ink); }
+  .agent.failed { border-color: var(--del-edge); background: var(--del); color: var(--warn); }
+
+  .timeline { list-style: none; margin: 0 0 1.5rem; padding: 0; font: 12px ui-monospace, monospace; }
+  .timeline li {
+    display: grid; grid-template-columns: 3rem 1fr; gap: .1rem .6rem;
+    padding: .3rem 0; border-bottom: 1px solid var(--rule); color: var(--ink-soft);
+  }
+  .timeline .when { color: var(--ink-faint); }
+  .timeline .why { grid-column: 2; color: var(--ink-faint); }
+  .timeline li.failed .what { color: var(--warn); }
+
   /* the checks read as a strip in the bar, not as a list in a column */
   .bar .checks { display: flex; gap: .6rem; margin: 0; }
   .bar .checks li {

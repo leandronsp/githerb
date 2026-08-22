@@ -26,6 +26,7 @@ type Proposal struct {
 	checks    map[CheckName]Check
 	chunks    []Chunk
 	rationale []Comment
+	work      []Work
 }
 
 // NewProposal opens a proposal at its first revision. The target is whichever
@@ -60,6 +61,7 @@ func NewProposal(id ProposalID, title string, target Branch, base, head SHA) (Pr
 		checks:    map[CheckName]Check{},
 		chunks:    nil,
 		rationale: nil,
+		work:      nil,
 	}, nil
 }
 
@@ -140,6 +142,13 @@ func (p Proposal) WithRecord(record Record) (Proposal, error) {
 		comment, _ := record.Comment()
 
 		return p.withRationale(comment)
+	case KindWork:
+		work, _ := record.Work()
+
+		next := p.clone()
+		next.work = append(next.work, work)
+
+		return next, nil
 	default:
 		return Proposal{}, fmt.Errorf("%q: %w", record.Kind(), ErrUnknownKind)
 	}
@@ -332,6 +341,17 @@ func (p Proposal) Abandoned() (Proposal, error) {
 	return next, nil
 }
 
+// Work is every line an agent left on this proposal.
+func (p Proposal) Work() []Work {
+	out := make([]Work, len(p.work))
+	copy(out, p.work)
+
+	return out
+}
+
+// Activity is what the work log adds up to: idle, working, or stopped.
+func (p Proposal) Activity() Activity { return activityOf(p.work) }
+
 // Chunks are the decisions the author is explaining, in the order they were
 // written, which is the order they should be read in.
 func (p Proposal) Chunks() []Chunk {
@@ -419,6 +439,9 @@ func (p Proposal) clone() Proposal {
 	rationale := make([]Comment, len(p.rationale))
 	copy(rationale, p.rationale)
 
+	work := make([]Work, len(p.work))
+	copy(work, p.work)
+
 	return Proposal{
 		id:        p.id,
 		title:     p.title,
@@ -431,5 +454,6 @@ func (p Proposal) clone() Proposal {
 		checks:    checks,
 		chunks:    chunks,
 		rationale: rationale,
+		work:      work,
 	}
 }

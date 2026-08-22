@@ -23,6 +23,10 @@
 
   <span class="spacer"></span>
 
+  <span class="agent {{ .AgentState }}" title="{{ with .Activity.Note }}{{ . }}{{ end }}">
+    {{ .AgentSays }}{{ if .Activity.Working }} · {{ ago .Activity.Since }}{{ end }}
+  </span>
+
   {{ if .Checks }}
     <ul class="checks">
       {{ range .Checks }}

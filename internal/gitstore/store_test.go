@@ -342,3 +342,42 @@ func span(t *testing.T) review.Span {
 
 	return made
 }
+
+func TestAnAgentsWorkComesBackThroughGit(t *testing.T) {
+	t.Parallel()
+
+	r, store := repo(t)
+
+	base, err := r.Resolve("HEAD")
+	if err != nil {
+		t.Fatalf("base: %v", err)
+	}
+
+	head := commit(t, r, "the work")
+	openProposal(t, store, base, head)
+
+	for _, phase := range []review.Phase{review.PhaseStarted, review.PhaseFailed} {
+		line, err := review.NewWork(head, review.TaskRebase, phase, "claude-code", "conflicts in a.txt", clock())
+		if err != nil {
+			t.Fatalf("work: %v", err)
+		}
+
+		if err := store.Annotate(head, review.WorkRecord(line)); err != nil {
+			t.Fatalf("annotate: %v", err)
+		}
+	}
+
+	got, err := store.Load("gate")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	if len(got.Work()) != 2 {
+		t.Fatalf("the work log came back with %d lines, want 2", len(got.Work()))
+	}
+
+	activity := got.Activity()
+	if !activity.Failed() || activity.Task() != review.TaskRebase || activity.Agent() != "claude-code" {
+		t.Fatalf("activity is %+v, want a failed rebase by claude-code", activity)
+	}
+}

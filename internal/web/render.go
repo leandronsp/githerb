@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/leandronsp/githerb/internal/review"
 )
@@ -38,6 +39,21 @@ var pages = template.Must(template.New("").Funcs(template.FuncMap{
 		}
 
 		return out, nil
+	},
+	// hhmm and ago are for the agent timeline, where what matters is when it
+	// happened rather than the date it happened on.
+	"hhmm": func(moment time.Time) string { return moment.Local().Format("15:04") },
+	"ago": func(moment time.Time) string {
+		since := time.Since(moment)
+
+		switch {
+		case since < time.Minute:
+			return fmt.Sprintf("%ds", int(since.Seconds()))
+		case since < time.Hour:
+			return fmt.Sprintf("%dm", int(since.Minutes()))
+		default:
+			return fmt.Sprintf("%dh", int(since.Hours()))
+		}
 	},
 	"sideNew": func() review.Side { return review.SideNew },
 	"sideOld": func() review.Side { return review.SideOld },
