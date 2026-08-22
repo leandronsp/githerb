@@ -45,8 +45,8 @@ const usage = `githerb proposes work, collects annotations on it and lands it.
   githerb check <proposal>
   githerb land <proposal>
   githerb abandon <proposal>
-  githerb run [--once] [--every 2s]    do what the log asks for, in a worktree
-  githerb review [proposal]            open the review surface in a browser
+  githerb review [proposal]            the browser, and the runner with it
+  githerb run [--once] [--every 2s]    the runner on its own, for another machine
   githerb version
 
 Everything lives in the repository: proposals are refs under

@@ -259,10 +259,15 @@ TOML
   local before after
   before=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
 
-  "$BIN" run --once >"$WORK/run.log" 2>&1 || return 1
-  grep -q "apply done" "$WORK/run.log" || return 1
+  # Nothing is started here on purpose: the review surface carries the runner,
+  # so handing the notes over is the whole trigger.
+  after=$before
+  for _ in $(seq 1 40); do
+    after=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
+    [ "$after" -gt "$before" ] && break
+    sleep 0.5
+  done
 
-  after=$("$BIN" show "$ID" | awk '/^state/ {print $4}')
   [ "$after" -gt "$before" ] || return 1
 
   # The agent works in its own worktree, so the checkout here never moved.

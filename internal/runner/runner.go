@@ -85,6 +85,23 @@ func (r Runner) Recover() (int, error) {
 	return cleared, nil
 }
 
+// reload picks up what the repository declares right now. A review surface
+// stays open for days, and a check or an agent added to the file in that time
+// is meant to take effect, not to wait for a restart.
+func (r Runner) reload() Runner {
+	loaded, err := config.Load(r.Root)
+	if err != nil {
+		r.say("%v", err)
+
+		return r
+	}
+
+	r.Config = loaded
+	r.Agent = loaded.Agent.Command
+
+	return r
+}
+
 // Once takes one pass: it works out what is pending and does the first of it.
 func (r Runner) Once(ctx context.Context) ([]Job, error) {
 	// Nothing of ours is in flight when a pass begins, because a pass runs one
@@ -93,6 +110,8 @@ func (r Runner) Once(ctx context.Context) ([]Job, error) {
 	if _, err := r.Recover(); err != nil {
 		return nil, err
 	}
+
+	r = r.reload()
 
 	proposals, err := r.Proposals.List()
 	if err != nil {

@@ -11,9 +11,8 @@ there is no service to run and nothing to sign up for.
 make install
 
 githerb propose --onto main --title "Rewrite the reader"
-githerb review                    # browser: diff, notes, decisions, land
-githerb dispatch <proposal>       # hand the open notes to an agent
-githerb run                       # a loop that answers what the log asks for
+githerb review                    # browser: diff, threads, decisions, land
+githerb dispatch <proposal>       # hand the notes to an agent, or the button
 githerb land <proposal>
 ```
 
@@ -65,6 +64,10 @@ gate = "make check"        # runs in a worktree of the head revision
 [agent]
 command = "claude -p --permission-mode bypassPermissions"
 ```
+
+`review` carries the runner, so the thing you leave open all day is the thing
+that answers. `githerb run` is the same loop on its own, for a machine that
+serves no pages. One runner per repository either way, and the lock decides.
 
 The agent gets the brief on stdin and a throwaway worktree as its working
 directory. It applies the notes and commits; whatever it leaves there is read

@@ -2,6 +2,7 @@ package runner_test
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -63,7 +64,12 @@ func write(t *testing.T, dir, name, body string) {
 
 func quote(text string) string { return "'" + text + "'" }
 
+// loop declares the agent the way a repository does, in its own file, because
+// the runner reads that file on every pass rather than trusting what it was
+// handed when it started.
 func (k kit) loop(agent string) runner.Runner {
+	declare(k.dir, agent)
+
 	return runner.Runner{
 		Proposals: k.proposals,
 		Git:       k.repo,
@@ -75,6 +81,15 @@ func (k kit) loop(agent string) runner.Runner {
 		Every:     time.Millisecond,
 		Say:       func(string) {},
 	}
+}
+
+func declare(dir, agent string) {
+	// A literal string, so nothing in a shell command has to be escaped twice.
+	_ = os.WriteFile(
+		filepath.Join(dir, ".githerb.toml"),
+		[]byte("[agent]\ncommand = +agent+\n"),
+		0o600,
+	)
 }
 
 func (k kit) propose(t *testing.T, title, onto string) review.Proposal {
