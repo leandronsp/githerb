@@ -1,179 +1,97 @@
 # githerb
 
-A gate and a memory for trunk, for people who work with agents.
+Code review and a gate for trunk, in one binary, with no server.
 
-An agent finishes a slice and proposes it. You read the diff and leave
-annotations on the lines you care about. The agent reads those annotations back
-as structured data, applies them, and proposes again. You approve, it lands,
-and the whole exchange stays in the repository as a record you can read next
-week.
-
-There is no server and no origin to point at. Git is already a database and it
-is already on your machine.
-
-## The loop
+An agent proposes a slice of work. You read the diff in a browser and annotate
+lines. The agent reads those annotations back as JSON, applies them, proposes
+again. You land it. All of it lives in your repository as refs and notes, so
+there is no service to run and nothing to sign up for.
 
 ```bash
+make install
+
 githerb propose --onto main --title "Rewrite the reader"
-githerb comment <proposal> --file a.txt --line 2:3 --body "these two want a name"
-githerb comments <proposal> --json      # what the agent reads
-githerb revise <proposal>               # after the agent applies them
-githerb resolve <proposal> <comment>
+githerb review                    # browser: diff, notes, decisions, land
+githerb dispatch <proposal>       # hand the open notes to an agent
+githerb run                       # a loop that answers what the log asks for
 githerb land <proposal>
 ```
 
-`land` does not care which branch it lands on. Proposing onto another proposal's
-branch is how a stack is built before any of it reaches the trunk, and landing
-the one underneath retargets the ones above it: the land is fast-forward only,
-so nothing is rewritten and no rebase is needed to follow.
-
-## The loop without you in it
-
-```bash
-githerb dispatch <proposal>   # or the button in the browser
-githerb run                   # a loop that answers what the log asks for
-```
-
-`run` reads the same records the browser reads and acts on them: notes handed
-over get applied, a proposal whose target ran ahead gets rebased, a head nobody
-checked gets checked. Each job runs in a throwaway worktree, so your own
-checkout is never touched, and each one is bracketed by two lines in the log.
-
-```toml
-# .githerb.toml
-[agent]
-command = "claude -p"
-```
-
-The brief arrives on stdin, the same text a person would have pasted, and the
-worktree is the working directory. githerb never learns what an agent is: the
-command comes from the repository the way a check command does. Whatever the
-agent commits becomes the next revision; a worktree that comes back unchanged is
-a failure with a reason.
-
-A rebase that conflicts is handed to the same agent, mid-rebase, in that
-worktree. If it walks away the rebase is aborted and the proposal says so, and a
-task that failed on a revision is never retried on that same revision.
-
-One runner per repository, one job at a time. An agent job is minutes of a
-machine and somebody's money, and two of them on one branch is how work gets
-lost.
-
-## Who is on it
+## Architecture
 
 ```
-$ githerb show <proposal>
-claude-code is applying since 14:03
+  you ──► browser ─┐                        ┌─► agent (any CLI, on stdin)
+                   │                        │
+                   ├──► internal/app ◄──────┘   use cases, one per verb
+                   │      propose  annotate     revise  dispatch
+                   │      land     resolve      check   abandon
+                   │             │
+                   │             ▼
+                   │    internal/review             the core: pure, no I/O
+                   │      Proposal (aggregate root)
+                   │      Comment  Chunk  Check
+                   │      Work     Dispatch  Span
+                   │             │ ports declared here
+                   │             ▼
+                   │    internal/gitstore           refs + notes, append-only
+                   │             │
+                   └─────────────┼──► your git repository
+                                 │
+  internal/runner ───────────────┘    read the log, claim a job, run [agent]
+                                      in a throwaway worktree, write it down
+
+  internal/web     server-rendered HTML over SSE; one JS file, no framework
+  internal/patch   unified diff in, anchored lines out
+  cmd/githerb      flags, and nothing else
 ```
-
-Every task an agent takes writes `started`, then `finished` or `failed` with one
-line about why. What that adds up to is derived, the way the state of a proposal
-is, so there is no field anyone can leave stale. The browser carries the same
-sentence in a chip and the last eight lines in the panel.
-
-## Where it all lives
 
 | what | where |
 |---|---|
-| a revision of a proposal | `refs/githerb/proposals/<id>/<n>` |
-| a proposal opening and landing | note on revision 1, ref `refs/notes/githerb/proposals` |
-| an annotation and its resolution | note on the revision, ref `refs/notes/githerb/annotations` |
+| a revision | `refs/githerb/proposals/<id>/<n>` |
+| opened, landed, retargeted | note on revision 1, `refs/notes/githerb/proposals` |
+| notes, decisions, checks, agent work | note on the revision, `refs/notes/githerb/annotations` |
 
-All of them are refs, so `git push origin 'refs/githerb/*' 'refs/notes/githerb/*'`
-is how a colleague gets them, over whatever host you already use. Nothing here
-needs a githerb server, and GitHub works fine as dumb storage.
+One line of JSON per record, versioned, append-only. A kind a build does not
+know is skipped rather than fatal. Push those refs and a colleague has the whole
+review, over whatever host you already pay for.
 
-The log is append-only. A resolution is a new record pointing at the record it
-resolves, never an edit, which is what lets two people annotate the same
-revision and lets git merge the result instead of conflicting.
-
-## What an agent sees
-
-One line of JSON per record, versioned, and it never has to ask us anything:
-
-```json
-{"v":1,"kind":"comment","id":"d904383dbfaf","rev":"5fe1236...","file":"a.txt","side":"new","start":2,"end":3,"body":"these two want a name","author":"leandro","at":"2026-08-21T19:53:44Z"}
-```
-
-Set `GITHERB_AUTHOR` and an agent signs as itself, so the record says which
-changes came from a machine and which came from you.
-
-## Running it
-
-```bash
-make          # list the targets
-make build    # bin/githerb
-make install  # onto the PATH
-make check    # the gate: format, vet, lint, tests
-```
-
-## What a proposal says
-
-A proposal is not a wall of diff with a paragraph on top. It carries the
-decisions it makes, one per chunk, each with what a person touches, how it was,
-how it is, the call, and the alternative that was not taken. Clicking one takes
-you to the lines that carry it.
-
-The author also leaves rationale on the lines that need it, which renders under
-the code rather than in a list somewhere else. Rationale never blocks: it
-answers a question instead of asking one.
-
-```bash
-githerb describe --template          # the shape
-githerb describe <proposal> < description.json
-```
-
-Every field is one line and every line has a ceiling: eighty characters for a
-title, a hundred and forty for a before or an after, two hundred for a
-decision. **The format is what keeps a description short, not the good
-intentions of whoever wrote it.** An agent that rambles gets its description
-refused, and it does not matter which agent or which harness it was.
-
-## Reviewing in a browser
-
-```bash
-githerb review [proposal]
-```
-
-Serves on loopback from the repository you are standing in. Drag down the line
-numbers to take a range, or click one and shift click another, then write what
-the agent should do about those lines. Selecting happens in the gutter so the
-code itself stays selectable. The
-panel keeps itself current over an event stream, so a note the agent answers in
-your terminal disappears from the page without a reload and without losing the
-lines you had selected.
-
-There is no framework. The server renders HTML and the client is one file that
-holds the selection and swaps the panel when the stream says so. Nothing is
-fetched from a CDN, so it works on a plane.
-
-## The gate
+## Configuration
 
 ```toml
 # .githerb.toml
 [checks]
-gate = "make check"
+gate = "make check"        # runs in a worktree of the head revision
+
+[agent]
+command = "claude -p"      # gets the brief on stdin, the worktree as cwd
 ```
 
-`githerb check <proposal>` (or `githerb run`) runs each command in a throwaway worktree of the head
-revision, not in your working tree, so the answer is about the code that would
-land rather than the code you happen to have open. The result is a record on the
-revision, and `land` refuses until every declared check has passed on the
-revision being landed. A new revision starts over, because the old result ran on
-other code.
+## Roadmap
 
-Who ran it is a field, not an architecture. The same record can come from your
-laptop, from a loop on a spare machine, or from whatever CI the project already
-pays for, and the gate cannot tell the difference.
+Done:
 
-## What did not get in
+- propose, revise, annotate, resolve, land, abandon
+- browser review: line and range notes, decisions, checks, live over SSE
+- stacked proposals, and landing one retargets what was stacked on it
+- gate: declared checks in a throwaway worktree, recorded per revision
+- agent loop: dispatch, apply, rebase with the conflicts handed back
+- work log: who picked it up, what happened, immutable
 
-`githerb abandon <proposal>` gives up on one. It stays on the board next to what
-landed, because a decision not to ship something is worth as much next month as
-a decision to ship it.
+Next:
 
-## State
+- read a verdict from an external CI instead of running the command here
+- more than one job at a time, and runners somewhere other than your laptop
+- fetching a colleague's proposals: the refs travel, the ergonomics do not
+- notes that survive a revision, instead of resting on the one they were left on
 
-A proposal has to reach a branch for an external CI to notice it, so reading a
-verdict from Semaphore or Actions instead of running the command locally is not
-here yet. The record it would write already exists.
+## Development
+
+```bash
+make          # the targets
+make check    # format, vet, warnings as errors, lint, tests
+make smoke    # the whole product against a real repository and a real browser
+```
+
+## License
+
+AGPL-3.0-or-later. See [LICENSE](LICENSE).
